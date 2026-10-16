@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>심연의 도박사 - 포커 로그라이크</title>
-    <!-- 스타일 분리: 심연의 도박장 CSS 스킨 연결 -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1 구조 개편)</h2>
+<!-- 🎲 심연의 도박장 시작 화면 (Title Screen) -->
+<div id="title-screen">
+    <div class="title-container">
+        <div class="game-title">심 연 의 도 박 사</div>
+        <div class="game-subtitle">ABYSSAL CASINO : POKER ROGUELIKE</div>
+        <p style="color: #a89f91; font-size: 13px; line-height: 1.6; margin-bottom: 25px;">
+            목숨을 판돈 삼아 심연의 딜러와 겨루어라.<br>
+            낮은 숫자는 방어, 높은 숫자는 족보가 되리니.
+        </p>
+        <button class="start-btn" onclick="startGame()">운명에의 초대 (게임 시작)</button>
+    </div>
+</div>
+
+<!-- 🎮 메인 게임 화면 -->
+<div class="container" id="game-main-container" style="opacity: 0.2; pointer-events: none;">
+    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1)</h2>
     
     <div class="status-box">
         <div>
@@ -33,7 +46,7 @@
         <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
         <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
         <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
-        <button onclick="initGame()" style="background: #222; color: #aaa;">판 재시작</button>
+        <button onclick="returnToTitle()" style="background: #222; color: #aaa;">타이틀로 돌아가기</button>
     </div>
 
     <h3>심연의 로그 기록</h3>
@@ -59,14 +72,41 @@
     }
 
     function getCardBlock(rank) {
-        if (rank === 14) return 12; // 에이스
-        return Math.max(2, 15 - rank); // 낮을수록 방어력 높음
+        if (rank === 14) return 12;
+        return Math.max(2, 15 - rank);
     }
 
     function logMessage(msg) {
         const logDiv = document.getElementById('log');
         logDiv.innerHTML += `> ${msg}<br>`;
         logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 게임 시작 버튼을 누를 때 호출되는 함수
+    function startGame() {
+        const titleScreen = document.getElementById('title-screen');
+        titleScreen.style.opacity = '0';
+        setTimeout(() => {
+            titleScreen.style.display = 'none';
+        }, 600);
+
+        const mainContainer = document.getElementById('game-main-container');
+        mainContainer.style.opacity = '1';
+        mainContainer.style.pointerEvents = 'auto';
+
+        initGame();
+    }
+
+    function returnToTitle() {
+        const titleScreen = document.getElementById('title-screen');
+        titleScreen.style.display = 'flex';
+        setTimeout(() => {
+            titleScreen.style.opacity = '1';
+        }, 10);
+
+        const mainContainer = document.getElementById('game-main-container');
+        mainContainer.style.opacity = '0.2';
+        mainContainer.style.pointerEvents = 'none';
     }
 
     function initGame() {
@@ -278,10 +318,6 @@
             handContainer.appendChild(cardDiv);
         });
     }
-
-    window.onload = function() {
-        initGame();
-    };
 </script>
 
 </body>
