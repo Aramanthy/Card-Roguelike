@@ -1,63 +1,42 @@
-poker_roguelike_gambler.html<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>도박사 포커 덱 빌딩 로그라이크</title>
-    <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: #121212; color: #fff; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid #333; }
-        .status-box { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 15px; background: #2a2a2a; border-radius: 6px; }
-        .card { 
-            display: inline-block; width: 75px; height: 110px; background: #f0f0f0; color: #000; 
-            margin-right: 10px; border-radius: 5px; text-align: center; vertical-align: top;
-            padding-top: 8px; cursor: pointer; border: 2px solid #ccc; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            transition: transform 0.1s;
-        }
-        .card:hover { transform: translateY(-5px); }
-        .card.selected { border-color: #ffcc00; background: #fffde7; transform: translateY(-10px); }
-        .card.red { color: #d32f2f; }
-        .card.black { color: #212121; }
-        .card-stat { font-size: 11px; margin-top: 6px; border-top: 1px dashed #ccc; padding-top: 4px; color: #333; }
-        #log { background: #0a0a0a; padding: 10px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px; margin-top: 20px; border-radius: 4px; border: 1px solid #333; }
-        .btn-group { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
-        button { padding: 10px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #005999; }
-        button.dealer-btn { background: #d32f2f; }
-        button.dealer-btn:hover { background: #b71c1c; }
-        button:disabled { background: #444; cursor: not-allowed; color: #888; }
-    </style>
+    <title>심연의 도박사 - 포커 로그라이크</title>
+    <!-- 스타일 분리: 심연의 도박장 CSS 스킨 연결 -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
-    <h2>도박사의 포커 로그라이크 (HP = 칩/판돈 시스템)</h2>
+    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1 구조 개편)</h2>
     
     <div class="status-box">
         <div>
-            <h3>플레이어 (도박사)</h3>
-            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff5252; font-weight: bold;">100</span> / 100</p>
+            <h3>플레이어 (타락한 도박사)</h3>
+            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff6b6b; font-weight: bold;">100</span> / 100</p>
             <p>방어력 (Block): <span id="player-block">0</span></p>
         </div>
         <div>
-            <h3>적 (하우스 딜러)</h3>
+            <h3>적 (심연의 딜러)</h3>
             <p>체력 (HP): <span id="enemy-hp">150</span> / 150</p>
-            <p>의도: 공격력 18 준비 중</p>
+            <p>의도: 심판의 일격 18 준비 중</p>
         </div>
     </div>
 
     <div>
         <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
-        <div id="hand-container" style="min-height: 130px;"></div>
+        <div id="hand-container" style="min-height: 140px;"></div>
     </div>
 
     <div class="btn-group">
         <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
         <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
         <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
-        <button onclick="initGame()" style="background: #555;">게임 재시작</button>
+        <button onclick="initGame()" style="background: #222; color: #aaa;">판 재시작</button>
     </div>
 
-    <h3>전투 로그</h3>
+    <h3>심연의 로그 기록</h3>
     <div id="log"></div>
 </div>
 
@@ -104,7 +83,7 @@ poker_roguelike_gambler.html<!DOCTYPE html>
 
         shuffleDeck();
         document.getElementById('log').innerHTML = '';
-        logMessage("도박판이 열렸습니다! 체력을 담보로 딜러를 매수하거나 공수 전략을 세우세요.");
+        logMessage("심연의 도박판이 열렸습니다. 목숨(HP)을 판돈 삼아 딜러와 겨루세요.");
         startPlayerTurn();
     }
 
@@ -128,7 +107,7 @@ poker_roguelike_gambler.html<!DOCTYPE html>
 
         setButtonsEnabled(true);
         updateUI();
-        logMessage("새로운 손패 5장이 들어왔습니다.");
+        logMessage("새로운 5장의 카드가 배분되었습니다.");
     }
 
     function toggleCard(uniqueId) {
@@ -139,16 +118,14 @@ poker_roguelike_gambler.html<!DOCTYPE html>
         }
     }
 
-    // 딜러 매수: 콜 (HP 5 소모, 무작위 패 1장 교체)
     function dealerCall() {
         if (player.hp <= 5) {
-            logMessage("체력이 부족하여 딜러를 매수할 수 없습니다!");
+            logMessage("체력(판돈)이 부족하여 딜러를 매수할 수 없습니다!");
             return;
         }
         player.hp -= 5;
         if (deck.length === 0) shuffleDeck();
         
-        // 선택되지 않았거나 첫 번째 카드 교체
         let indexToReplace = hand.findIndex(c => !c.selected);
         if (indexToReplace === -1) indexToReplace = 0;
         
@@ -156,14 +133,13 @@ poker_roguelike_gambler.html<!DOCTYPE html>
         newCard.selected = true;
         hand[indexToReplace] = newCard;
 
-        logMessage("딜러에게 뇌물(HP -5)을 바치고 카드 1장을 교체했습니다 (콜).");
+        logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 은밀히 교체했습니다 (콜).");
         updateUI();
     }
 
-    // 딜러 매수: 레이즈 (HP 10 소모, 카드 2장 교체)
     function dealerRaise() {
         if (player.hp <= 10) {
-            logMessage("체력이 부족하여 레이즈를 할 수 없습니다!");
+            logMessage("체력(판돈)이 부족하여 레이즈를 할 수 없습니다!");
             return;
         }
         player.hp -= 10;
@@ -178,7 +154,7 @@ poker_roguelike_gambler.html<!DOCTYPE html>
             hand[indexToReplace] = newCard;
         }
 
-        logMessage("딜러에게 거액의 뇌물(HP -10)을 바치고 카드 2장을 교체했습니다 (레이즈!).");
+        logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 뒤바꿨습니다 (레이즈!).");
         updateUI();
     }
 
@@ -218,33 +194,31 @@ poker_roguelike_gambler.html<!DOCTYPE html>
     function playTurnAction() {
         let selectedCards = hand.filter(c => c.selected);
         if (selectedCards.length === 0) {
-            logMessage("행동할 카드를 최소 1장 이상 선택해주세요!");
+            logMessage("행동할 카드를 최소 1장 이상 선택하십시오.");
             return;
         }
 
         setButtonsEnabled(false);
 
-        // 1. 방어력 계산 (낮은 숫자일수록 방어력 높음)
         let totalBlock = 0;
         selectedCards.forEach(c => {
             totalBlock += getCardBlock(c.rank);
         });
         player.block += totalBlock;
-        logMessage(`카드를 조합해 총 ${totalBlock}의 방어력을 전개했습니다.`);
+        logMessage(`어둠 속에서 ${totalBlock}의 방어막을 전개했습니다.`);
 
-        // 2. 공격 족보 판정
         let result = evaluatePokerHand(selectedCards);
         let finalDamage = Math.floor(result.base * result.multiplier);
 
-        logMessage(`[족보 판정] ${result.name}! (기본합: ${result.base} × 배율: ${result.multiplier})`);
-        logMessage(`딜러에게 총 ${finalDamage}의 피해를 입혔습니다!`);
+        logMessage(`[운명의 판정] ${result.name}! (합: ${result.base} × 배율: ${result.multiplier})`);
+        logMessage(`딜러의 심장을 겨냥해 ${finalDamage}의 피해를 입혔습니다!`);
         enemy.hp -= finalDamage;
         if (enemy.hp < 0) enemy.hp = 0;
 
         updateUI();
 
         if (enemy.hp <= 0) {
-            logMessage("하우스 딜러를 꺾고 판을 지배했습니다! 전투 승리!");
+            logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!");
             alert("전투 승리!");
             return;
         }
@@ -253,7 +227,7 @@ poker_roguelike_gambler.html<!DOCTYPE html>
     }
 
     function enemyTurn() {
-        logMessage(`딜러가 반격합니다! (공격력: ${enemy.intentDamage})`);
+        logMessage(`딜러가 심판의 역습을 가합니다! (위협: ${enemy.intentDamage})`);
         
         let actualDamage = enemy.intentDamage - player.block;
         if (actualDamage < 0) actualDamage = 0;
@@ -262,12 +236,12 @@ poker_roguelike_gambler.html<!DOCTYPE html>
         player.hp -= actualDamage;
         if (player.hp < 0) player.hp = 0;
 
-        logMessage(`딜러의 공격으로 체력(판돈)이 ${actualDamage} 감소했습니다.`);
+        logMessage(`일격으로 인해 생명력(판돈)이 ${actualDamage} 소모되었습니다.`);
         updateUI();
 
         if (player.hp <= 0) {
-            logMessage("체력(판돈)이 바닥나 파산했습니다... 게임 오버!");
-            alert("파산(게임 오버)!");
+            logMessage("판돈이 바닥나 심연 속으로 추락했습니다... 파산 (GAME OVER)");
+            alert("파산 (게임 오버)!");
             return;
         }
 
@@ -295,8 +269,8 @@ poker_roguelike_gambler.html<!DOCTYPE html>
             
             let blockVal = getCardBlock(card.rank);
             cardDiv.innerHTML = `
-                <div style="font-size: 16px;">${card.suit}</div>
-                <div style="font-size: 20px; font-weight: bold; margin-top: 2px;">${getRankName(card.rank)}</div>
+                <div style="font-size: 15px;">${card.suit}</div>
+                <div style="font-size: 22px; font-weight: bold; margin-top: 4px;">${getRankName(card.rank)}</div>
                 <div class="card-stat">🛡️ +${blockVal}</div>
             `;
             
