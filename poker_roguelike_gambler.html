@@ -1,0 +1,314 @@
+poker_roguelike_gambler.html<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>도박사 포커 덱 빌딩 로그라이크</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #121212; color: #fff; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid #333; }
+        .status-box { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 15px; background: #2a2a2a; border-radius: 6px; }
+        .card { 
+            display: inline-block; width: 75px; height: 110px; background: #f0f0f0; color: #000; 
+            margin-right: 10px; border-radius: 5px; text-align: center; vertical-align: top;
+            padding-top: 8px; cursor: pointer; border: 2px solid #ccc; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card.selected { border-color: #ffcc00; background: #fffde7; transform: translateY(-10px); }
+        .card.red { color: #d32f2f; }
+        .card.black { color: #212121; }
+        .card-stat { font-size: 11px; margin-top: 6px; border-top: 1px dashed #ccc; padding-top: 4px; color: #333; }
+        #log { background: #0a0a0a; padding: 10px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px; margin-top: 20px; border-radius: 4px; border: 1px solid #333; }
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 10px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #005999; }
+        button.dealer-btn { background: #d32f2f; }
+        button.dealer-btn:hover { background: #b71c1c; }
+        button:disabled { background: #444; cursor: not-allowed; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>도박사의 포커 로그라이크 (HP = 칩/판돈 시스템)</h2>
+    
+    <div class="status-box">
+        <div>
+            <h3>플레이어 (도박사)</h3>
+            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff5252; font-weight: bold;">100</span> / 100</p>
+            <p>방어력 (Block): <span id="player-block">0</span></p>
+        </div>
+        <div>
+            <h3>적 (하우스 딜러)</h3>
+            <p>체력 (HP): <span id="enemy-hp">150</span> / 150</p>
+            <p>의도: 공격력 18 준비 중</p>
+        </div>
+    </div>
+
+    <div>
+        <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
+        <div id="hand-container" style="min-height: 130px;"></div>
+    </div>
+
+    <div class="btn-group">
+        <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
+        <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
+        <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
+        <button onclick="initGame()" style="background: #555;">게임 재시작</button>
+    </div>
+
+    <h3>전투 로그</h3>
+    <div id="log"></div>
+</div>
+
+<script>
+    let player = { hp: 100, maxHp: 100, block: 0 };
+    let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
+    
+    let deck = [];
+    let hand = [];
+
+    const suits = ['♠', '♥', '◆', '♣'];
+    const ranks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+
+    function getRankName(r) {
+        if (r === 11) return 'J';
+        if (r === 12) return 'Q';
+        if (r === 13) return 'K';
+        if (r === 14) return 'A';
+        return r;
+    }
+
+    function getCardBlock(rank) {
+        if (rank === 14) return 12; // 에이스
+        return Math.max(2, 15 - rank); // 낮을수록 방어력 높음
+    }
+
+    function logMessage(msg) {
+        const logDiv = document.getElementById('log');
+        logDiv.innerHTML += `> ${msg}<br>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function initGame() {
+        player.hp = 100;
+        player.block = 0;
+        enemy.hp = 150;
+        
+        deck = [];
+        suits.forEach(suit => {
+            ranks.forEach(rank => {
+                deck.push({ suit: suit, rank: rank, selected: true, uniqueId: Math.random() });
+            });
+        });
+
+        shuffleDeck();
+        document.getElementById('log').innerHTML = '';
+        logMessage("도박판이 열렸습니다! 체력을 담보로 딜러를 매수하거나 공수 전략을 세우세요.");
+        startPlayerTurn();
+    }
+
+    function shuffleDeck() {
+        for (let i = deck.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+    }
+
+    function startPlayerTurn() {
+        player.block = 0;
+        hand = [];
+        
+        for (let i = 0; i < 5; i++) {
+            if (deck.length === 0) shuffleDeck();
+            let card = deck.pop();
+            card.selected = true;
+            hand.push(card);
+        }
+
+        setButtonsEnabled(true);
+        updateUI();
+        logMessage("새로운 손패 5장이 들어왔습니다.");
+    }
+
+    function toggleCard(uniqueId) {
+        let card = hand.find(c => c.uniqueId === uniqueId);
+        if (card) {
+            card.selected = !card.selected;
+            updateUI();
+        }
+    }
+
+    // 딜러 매수: 콜 (HP 5 소모, 무작위 패 1장 교체)
+    function dealerCall() {
+        if (player.hp <= 5) {
+            logMessage("체력이 부족하여 딜러를 매수할 수 없습니다!");
+            return;
+        }
+        player.hp -= 5;
+        if (deck.length === 0) shuffleDeck();
+        
+        // 선택되지 않았거나 첫 번째 카드 교체
+        let indexToReplace = hand.findIndex(c => !c.selected);
+        if (indexToReplace === -1) indexToReplace = 0;
+        
+        let newCard = deck.pop();
+        newCard.selected = true;
+        hand[indexToReplace] = newCard;
+
+        logMessage("딜러에게 뇌물(HP -5)을 바치고 카드 1장을 교체했습니다 (콜).");
+        updateUI();
+    }
+
+    // 딜러 매수: 레이즈 (HP 10 소모, 카드 2장 교체)
+    function dealerRaise() {
+        if (player.hp <= 10) {
+            logMessage("체력이 부족하여 레이즈를 할 수 없습니다!");
+            return;
+        }
+        player.hp -= 10;
+        
+        for(let i=0; i<2; i++) {
+            if (deck.length === 0) shuffleDeck();
+            let indexToReplace = hand.findIndex(c => !c.selected);
+            if (indexToReplace === -1) indexToReplace = i;
+            
+            let newCard = deck.pop();
+            newCard.selected = true;
+            hand[indexToReplace] = newCard;
+        }
+
+        logMessage("딜러에게 거액의 뇌물(HP -10)을 바치고 카드 2장을 교체했습니다 (레이즈!).");
+        updateUI();
+    }
+
+    function evaluatePokerHand(cards) {
+        if (cards.length === 0) return { name: "없음 (공격 안 함)", multiplier: 0, base: 0 };
+
+        let sortedRanks = cards.map(c => c.rank).sort((a, b) => a - b);
+        let counts = {};
+        sortedRanks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+        let countValues = Object.values(counts).sort((a, b) => b - a);
+
+        let firstSuit = cards[0].suit;
+        let isFlush = cards.every(c => c.suit === firstSuit) && cards.length >= 5;
+
+        let isStraight = false;
+        if (cards.length >= 5 && Object.keys(counts).length === 5) {
+            if (sortedRanks[4] - sortedRanks[0] === 4) {
+                isStraight = true;
+            }
+        }
+
+        let sumRanks = sortedRanks.reduce((a, b) => a + b, 0);
+
+        if (isStraight && isFlush) return { name: "스트레이트 플러시", multiplier: 10, base: sumRanks };
+        if (countValues[0] === 4) return { name: "포카드", multiplier: 8, base: sumRanks };
+        if (countValues[0] === 3 && countValues[1] === 2) return { name: "풀하우스", multiplier: 6, base: sumRanks };
+        if (isFlush) return { name: "플러시", multiplier: 5, base: sumRanks };
+        if (isStraight) return { name: "스트레이트", multiplier: 4, base: sumRanks };
+        if (countValues[0] === 3) return { name: "트리플", multiplier: 3, base: sumRanks };
+        if (countValues[0] === 2 && countValues[1] === 2) return { name: "투페어", multiplier: 2, base: sumRanks };
+        if (countValues[0] === 2) return { name: "원페어", multiplier: 1.5, base: sumRanks };
+
+        let maxCard = Math.max(...sortedRanks);
+        return { name: "하이 카드", multiplier: 1, base: maxCard };
+    }
+
+    function playTurnAction() {
+        let selectedCards = hand.filter(c => c.selected);
+        if (selectedCards.length === 0) {
+            logMessage("행동할 카드를 최소 1장 이상 선택해주세요!");
+            return;
+        }
+
+        setButtonsEnabled(false);
+
+        // 1. 방어력 계산 (낮은 숫자일수록 방어력 높음)
+        let totalBlock = 0;
+        selectedCards.forEach(c => {
+            totalBlock += getCardBlock(c.rank);
+        });
+        player.block += totalBlock;
+        logMessage(`카드를 조합해 총 ${totalBlock}의 방어력을 전개했습니다.`);
+
+        // 2. 공격 족보 판정
+        let result = evaluatePokerHand(selectedCards);
+        let finalDamage = Math.floor(result.base * result.multiplier);
+
+        logMessage(`[족보 판정] ${result.name}! (기본합: ${result.base} × 배율: ${result.multiplier})`);
+        logMessage(`딜러에게 총 ${finalDamage}의 피해를 입혔습니다!`);
+        enemy.hp -= finalDamage;
+        if (enemy.hp < 0) enemy.hp = 0;
+
+        updateUI();
+
+        if (enemy.hp <= 0) {
+            logMessage("하우스 딜러를 꺾고 판을 지배했습니다! 전투 승리!");
+            alert("전투 승리!");
+            return;
+        }
+
+        setTimeout(enemyTurn, 900);
+    }
+
+    function enemyTurn() {
+        logMessage(`딜러가 반격합니다! (공격력: ${enemy.intentDamage})`);
+        
+        let actualDamage = enemy.intentDamage - player.block;
+        if (actualDamage < 0) actualDamage = 0;
+        
+        player.block = Math.max(0, player.block - enemy.intentDamage);
+        player.hp -= actualDamage;
+        if (player.hp < 0) player.hp = 0;
+
+        logMessage(`딜러의 공격으로 체력(판돈)이 ${actualDamage} 감소했습니다.`);
+        updateUI();
+
+        if (player.hp <= 0) {
+            logMessage("체력(판돈)이 바닥나 파산했습니다... 게임 오버!");
+            alert("파산(게임 오버)!");
+            return;
+        }
+
+        setTimeout(startPlayerTurn, 900);
+    }
+
+    function setButtonsEnabled(enabled) {
+        document.getElementById('call-btn').disabled = !enabled;
+        document.getElementById('raise-btn').disabled = !enabled;
+        document.getElementById('action-btn').disabled = !enabled;
+    }
+
+    function updateUI() {
+        document.getElementById('player-hp').innerText = player.hp;
+        document.getElementById('player-block').innerText = player.block;
+        document.getElementById('enemy-hp').innerText = enemy.hp;
+
+        let handContainer = document.getElementById('hand-container');
+        handContainer.innerHTML = '';
+        
+        hand.forEach(card => {
+            let cardDiv = document.createElement('div');
+            let isRed = (card.suit === '♥' || card.suit === '◆');
+            cardDiv.className = `card ${isRed ? 'red' : 'black'} ${card.selected ? 'selected' : ''}`;
+            
+            let blockVal = getCardBlock(card.rank);
+            cardDiv.innerHTML = `
+                <div style="font-size: 16px;">${card.suit}</div>
+                <div style="font-size: 20px; font-weight: bold; margin-top: 2px;">${getRankName(card.rank)}</div>
+                <div class="card-stat">🛡️ +${blockVal}</div>
+            `;
+            
+            cardDiv.onclick = () => toggleCard(card.uniqueId);
+            handContainer.appendChild(cardDiv);
+        });
+    }
+
+    window.onload = function() {
+        initGame();
+    };
+</script>
+
+</body>
+</html>
