@@ -1,394 +1,268 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>심연의 도박사 - 포커 로그라이크</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+/* --- 심연의 도박장 (Abyssal Casino) 누아르 스킨 --- */
+body {
+    font-family: 'Malgun Gothic', sans-serif;
+    background-color: #0a080c;
+    color: #e0d6c3;
+    padding: 20px;
+    margin: 0;
+}
 
-<!-- 🎲 1. 심연의 도박장 시작 화면 (Title Screen) -->
-<div id="title-screen">
-    <div class="title-container">
-        <div class="game-title">심 연 의 도 박 사</div>
-        <div class="game-subtitle">ABYSSAL CASINO : POKER ROGUELIKE</div>
-        <p style="color: #a89f91; font-size: 13px; line-height: 1.6; margin-bottom: 25px;">
-            목숨을 판돈 삼아 심연의 딜러와 겨루어라.<br>
-            낮은 숫자는 방어, 높은 숫자는 족보가 되리니.
-        </p>
-        <button class="start-btn" onclick="openLobby()">운명에의 초대 (입장하기)</button>
-    </div>
-</div>
+.container {
+    max-width: 850px;
+    margin: 0 auto;
+    background: #141017;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(212, 175, 55, 0.05);
+    border: 1px solid #3a2e1d;
+}
 
-<!-- 🏛️ 2. Pre-Run 메인 로비 화면 (Lobby Screen) -->
-<div id="lobby-screen">
-    <div class="lobby-container">
-        <div class="lobby-title">심 연 의 로 비</div>
-        <div class="lobby-menu-group">
-            <button class="lobby-btn" onclick="startNewRun()">새 런 시작 (New Run)</button>
-            <button class="lobby-btn" onclick="alert('추후 업데이트 예정입니다.')">이어하기 (Continue)</button>
-            <button class="lobby-btn" onclick="openCharacterInfo()">도박사 명단 (Characters)</button>
-            <button class="lobby-btn" onclick="openHelpModal()">도움말 (Help & Rules)</button>
-            <button class="lobby-btn danger" onclick="returnToTitleFromLobby()">타이틀로 돌아가기</button>
-        </div>
-    </div>
-</div>
+.status-box {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 15px 20px;
+    background: #1b1520;
+    border-radius: 6px;
+    border-left: 4px solid #8b0000;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+}
 
-<!-- 🎮 3. 메인 게임 화면 -->
-<div class="container" id="game-main-container" style="opacity: 0.2; pointer-events: none; display: none;">
-    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1)</h2>
-    
-    <div class="status-box">
-        <div>
-            <h3>플레이어 (타락한 도박사)</h3>
-            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff6b6b; font-weight: bold;">100</span> / 100</p>
-            <p>방어력 (Block): <span id="player-block">0</span></p>
-        </div>
-        <div>
-            <h3>적 (심연의 딜러)</h3>
-            <p>체력 (HP): <span id="enemy-hp">150</span> / 150</p>
-            <p>의도: 심판의 일격 18 준비 중</p>
-        </div>
-    </div>
+.card { 
+    display: inline-block; 
+    width: 80px; 
+    height: 115px; 
+    background: #f4eee1; 
+    color: #111; 
+    margin-right: 12px; 
+    border-radius: 6px; 
+    text-align: center; 
+    vertical-align: top;
+    padding-top: 10px; 
+    cursor: pointer; 
+    border: 2px solid #b39b68; 
+    font-weight: bold; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
 
-    <div>
-        <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
-        <div id="hand-container" style="min-height: 140px;"></div>
-    </div>
+.card:hover { 
+    transform: translateY(-6px); 
+    box-shadow: 0 8px 16px rgba(212, 175, 55, 0.2);
+}
 
-    <div class="btn-group">
-        <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
-        <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
-        <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
-        <button onclick="returnToLobby()" style="background: #222; color: #aaa;">로비로 돌아가기</button>
-    </div>
+.card.selected { 
+    border-color: #d4af37; 
+    background: #fffdf5; 
+    transform: translateY(-12px);
+    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4);
+}
 
-    <h3>심연의 로그 기록</h3>
-    <div id="log"></div>
-</div>
+.card.red { color: #990000; }
+.card.black { color: #1c1c1c; }
 
-<script>
-    let player = { hp: 100, maxHp: 100, block: 0 };
-    let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
-    
-    let deck = [];
-    let hand = [];
+.card-stat { 
+    font-size: 11px; 
+    margin-top: 8px; 
+    border-top: 1px dashed #c2b29b; 
+    padding-top: 5px; 
+    color: #4a3b2c; 
+}
 
-    const suits = ['♠', '♥', '◆', '♣'];
-    const ranks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+#log { 
+    background: #070509; 
+    padding: 12px; 
+    height: 180px; 
+    overflow-y: auto; 
+    font-family: 'Courier New', monospace; 
+    font-size: 13px; 
+    margin-top: 20px; 
+    border-radius: 6px; 
+    border: 1px solid #241c14; 
+    color: #a89f91;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
+}
 
-    function getRankName(r) {
-        if (r === 11) return 'J';
-        if (r === 12) return 'Q';
-        if (r === 13) return 'K';
-        if (r === 14) return 'A';
-        return r;
-    }
+.btn-group { 
+    margin-top: 20px; 
+    display: flex; 
+    gap: 12px; 
+    flex-wrap: wrap; 
+}
 
-    function getCardBlock(rank) {
-        if (rank === 14) return 12;
-        return Math.max(2, 15 - rank);
-    }
+button { 
+    padding: 11px 18px; 
+    background: #2a2218; 
+    color: #d4af37; 
+    border: 1px solid #6b5332; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    transition: all 0.2s;
+}
 
-    function logMessage(msg) {
-        const logDiv = document.getElementById('log');
-        logDiv.innerHTML += `> ${msg}<br>`;
-        logDiv.scrollTop = logDiv.scrollHeight;
-    }
+button:hover { 
+    background: #3d3121; 
+    border-color: #d4af37;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
 
-    // 타이틀 -> 로비로 이동
-    function openLobby() {
-        const titleScreen = document.getElementById('title-screen');
-        titleScreen.style.opacity = '0';
-        setTimeout(() => {
-            titleScreen.style.display = 'none';
-            const lobbyScreen = document.getElementById('lobby-screen');
-            lobbyScreen.style.display = 'flex';
-            lobbyScreen.style.opacity = '1';
-        }, 500);
-    }
+button.dealer-btn { 
+    background: #3b1111; 
+    color: #ff6b6b; 
+    border-color: #8b0000; 
+}
 
-    // 로비 -> 타이틀로 복귀
-    function returnToTitleFromLobby() {
-        const lobbyScreen = document.getElementById('lobby-screen');
-        lobbyScreen.style.opacity = '0';
-        setTimeout(() => {
-            lobbyScreen.style.display = 'none';
-            const titleScreen = document.getElementById('title-screen');
-            titleScreen.style.display = 'flex';
-            titleScreen.style.opacity = '1';
-        }, 500);
-    }
+button.dealer-btn:hover { 
+    background: #521818; 
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+}
 
-    // 로비 -> 새 런 시작 (게임 진입)
-    function startNewRun() {
-        const lobbyScreen = document.getElementById('lobby-screen');
-        lobbyScreen.style.opacity = '0';
-        setTimeout(() => {
-            lobbyScreen.style.display = 'none';
-            const mainContainer = document.getElementById('game-main-container');
-            mainContainer.style.display = 'block';
-            mainContainer.style.opacity = '1';
-            mainContainer.style.pointerEvents = 'auto';
-        }, 500);
+button:disabled { 
+    background: #181512; 
+    border-color: #2b241c; 
+    cursor: not-allowed; 
+    color: #554c42; 
+    box-shadow: none;
+}
 
-        initGame();
-    }
+/* --- 심연의 도박장 시작 화면 (Title Screen) 스타일 --- */
+#title-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, #1a121e 0%, #070509 90%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.5s ease;
+}
 
-    // 게임 중 로비로 복귀
-    function returnToLobby() {
-        const mainContainer = document.getElementById('game-main-container');
-        mainContainer.style.opacity = '0.2';
-        mainContainer.style.pointerEvents = 'none';
-        mainContainer.style.display = 'none';
+.title-container {
+    text-align: center;
+    padding: 40px;
+    background: rgba(14, 10, 15, 0.85);
+    border: 1px solid #3a2e1d;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(212, 175, 55, 0.05);
+    max-width: 500px;
+    width: 90%;
+}
 
-        const lobbyScreen = document.getElementById('lobby-screen');
-        lobbyScreen.style.display = 'flex';
-        setTimeout(() => {
-            lobbyScreen.style.opacity = '1';
-        }, 10);
-    }
+.game-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #e0d6c3;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+    letter-spacing: 2px;
+}
 
-    function openCharacterInfo() {
-        alert("[도박사 명단]\n현재 캐릭터: 타락한 도박사 (기본 HP 100)\n특성: 냉혹한 심판자에게 맞서는 자.");
-    }
+.game-subtitle {
+    font-size: 14px;
+    color: #8b0000;
+    margin-bottom: 30px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
 
-    function openHelpModal() {
-        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block) 제공\n- 높은 숫자 및 족보(J~A, 페어, 플러시 등): 강력한 공격력 발휘\n- 콜/레이즈: HP를 소모하여 카드를 교체하는 딜러 매수 시스템");
-    }
+.start-btn {
+    padding: 14px 28px;
+    background: #2a2218;
+    color: #d4af37;
+    border: 2px solid #b39b68;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+    transition: all 0.25s ease;
+}
 
-    function initGame() {
-        player.hp = 100;
-        player.block = 0;
-        enemy.hp = 150;
-        
-        deck = [];
-        suits.forEach(suit => {
-            ranks.forEach(rank => {
-                deck.push({ suit: suit, rank: rank, selected: true, uniqueId: Math.random() });
-            });
-        });
+.start-btn:hover {
+    background: #3d3121;
+    border-color: #d4af37;
+    color: #fffdf5;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+    transform: translateY(-3px);
+}
 
-        shuffleDeck();
-        document.getElementById('log').innerHTML = '';
-        logMessage("심연의 도박판이 열렸습니다. 목숨(HP)을 판돈 삼아 딜러와 겨루세요.");
-        startPlayerTurn();
-    }
+/* --- 심연의 도박장 Pre-Run 메인 로비 스타일 --- */
+#lobby-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, #140d18 0%, #070509 95%);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 900;
+    transition: opacity 0.5s ease;
+}
 
-    function shuffleDeck() {
-        for (let i = deck.length - 1; i > 0; i--) {
-            let j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
-    }
+.lobby-container {
+    text-align: center;
+    padding: 35px 50px;
+    background: rgba(18, 13, 20, 0.9);
+    border: 1px solid #3a2e1d;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(212, 175, 55, 0.04);
+    width: 400px;
+}
 
-    function startPlayerTurn() {
-        player.block = 0;
-        hand = [];
-        
-        for (let i = 0; i < 5; i++) {
-            if (deck.length === 0) shuffleDeck();
-            let card = deck.pop();
-            card.selected = true;
-            hand.push(card);
-        }
+.lobby-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #d4af37;
+    margin-bottom: 25px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #2e2417;
+    padding-bottom: 12px;
+}
 
-        setButtonsEnabled(true);
-        updateUI();
-        logMessage("새로운 5장의 카드가 배분되었습니다.");
-    }
+.lobby-menu-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
-    function toggleCard(uniqueId) {
-        let card = hand.find(c => c.uniqueId === uniqueId);
-        if (card) {
-            card.selected = !card.selected;
-            updateUI();
-        }
-    }
+.lobby-btn {
+    padding: 12px 20px;
+    background: #221a12;
+    color: #e0d6c3;
+    border: 1px solid #544125;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+}
 
-    function dealerCall() {
-        if (player.hp <= 5) {
-            logMessage("체력(판돈)이 부족하여 딜러를 매수할 수 없습니다!");
-            return;
-        }
-        player.hp -= 5;
-        if (deck.length === 0) shuffleDeck();
-        
-        let indexToReplace = hand.findIndex(c => !c.selected);
-        if (indexToReplace === -1) indexToReplace = 0;
-        
-        let newCard = deck.pop();
-        newCard.selected = true;
-        hand[indexToReplace] = newCard;
+.lobby-btn:hover {
+    background: #3b2e1e;
+    border-color: #d4af37;
+    color: #d4af37;
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+}
 
-        logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 은밀히 교체했습니다 (콜).");
-        updateUI();
-    }
+.lobby-btn.danger {
+    background: #2b1111;
+    color: #ff6b6b;
+    border-color: #701c1c;
+}
 
-    function dealerRaise() {
-        if (player.hp <= 10) {
-            logMessage("체력(판돈)이 부족하여 레이즈를 할 수 없습니다!");
-            return;
-        }
-        player.hp -= 10;
-        
-        for(let i=0; i<2; i++) {
-            if (deck.length === 0) shuffleDeck();
-            let indexToReplace = hand.findIndex(c => !c.selected);
-            if (indexToReplace === -1) indexToReplace = i;
-            
-            let newCard = deck.pop();
-            newCard.selected = true;
-            hand[indexToReplace] = newCard;
-        }
-
-        logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 뒤바꿨습니다 (레이즈!).");
-        updateUI();
-    }
-
-    function evaluatePokerHand(cards) {
-        if (cards.length === 0) return { name: "없음 (공격 안 함)", multiplier: 0, base: 0 };
-
-        let sortedRanks = cards.map(c => c.rank).sort((a, b) => a - b);
-        let counts = {};
-        sortedRanks.forEach(r => counts[r] = (counts[r] || 0) + 1);
-        let countValues = Object.values(counts).sort((a, b) => b - a);
-
-        let firstSuit = cards[0].suit;
-        let isFlush = cards.every(c => c.suit === firstSuit) && cards.length >= 5;
-
-        let isStraight = false;
-        if (cards.length >= 5 && Object.keys(counts).length === 5) {
-            if (sortedRanks[4] - sortedRanks[0] === 4) {
-                isStraight = true;
-            }
-        }
-
-        let sumRanks = sortedRanks.reduce((a, b) => a + b, 0);
-
-        if (isStraight && isFlush) return { name: "스트레이트 플러시", multiplier: 10, base: sumRanks };
-        if (countValues[0] === 4) return { name: "포카드", multiplier: 8, base: sumRanks };
-        if (countValues[0] === 3 && countValues[1] === 2) return { name: "풀하우스", multiplier: 6, base: sumRanks };
-        if (isFlush) return { name: "플러시", multiplier: 5, base: sumRanks };
-        if (isStraight) return { name: "스트레이트", multiplier: 4, base: sumRanks };
-        if (countValues[0] === 3) return { name: "트리플", multiplier: 3, base: sumRanks };
-        if (countValues[0] === 2 && countValues[1] === 2) return { name: "투페어", multiplier: 2, base: sumRanks };
-        if (countValues[0] === 2) return { name: "원페어", multiplier: 1.5, base: sumRanks };
-
-        let maxCard = Math.max(...sortedRanks);
-        return { name: "하이 카드", multiplier: 1, base: maxCard };
-    }
-
-    function playTurnAction() {
-        let selectedCards = hand.filter(c => c.selected);
-        if (selectedCards.length === 0) {
-            logMessage("행동할 카드를 최소 1장 이상 선택하십시오.");
-            return;
-        }
-
-        setButtonsEnabled(false);
-
-        let totalBlock = 0;
-        selectedCards.forEach(c => {
-            totalBlock += getCardBlock(c.rank);
-        });
-        player.block += totalBlock;
-        logMessage(`어둠 속에서 ${totalBlock}의 방어막을 전개했습니다.`);
-
-        let result = evaluatePokerHand(selectedCards);
-        let finalDamage = Math.floor(result.base * result.multiplier);
-
-        logMessage(`[운명의 판정] ${result.name}! (합: ${result.base} × 배율: ${result.multiplier})`);
-        logMessage(`딜러의 심장을 겨냥해 ${finalDamage}의 피해를 입혔습니다!`);
-        enemy.hp -= finalDamage;
-        if (enemy.hp < 0) enemy.hp = 0;
-
-        updateUI();
-
-        if (enemy.hp <= 0) {
-            logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!");
-            alert("전투 승리!");
-            return;
-        }
-
-        setTimeout(enemyTurn, 900);
-    }
-
-    function enemyTurn() {
-        logMessage(`딜러가 심판의 역습을 가합니다! (위협: ${enemy.intentDamage})`);
-        
-        let actualDamage = enemy.intentDevice - player.block; // (참고: 버그 방지용 수정 반영)
-        // ... 기존 로직 유지 ...
-        let actualDmg = Math.max(0, enemy.intentDamage - player.block);
-        
-        player.block = Math.max(0, player.block - enemy.intentDamage);
-        player.hp -= actualDmg;
-        if (player.hp < 0) player.hp = 0;
-
-        logMessage(`일격으로 인해 생명력(판돈)이 ${actualDmg} 소모되었습니다.`);
-        updateUI();
-
-        if (player.hp <= 0) {
-            logMessage("판돈이 바닥나 심연 속으로 추락했습니다... 파산 (GAME OVER)");
-            alert("파산 (게임 오버)!");
-            return;
-        }
-
-        setTimeout(startPlayerTurn, 900);
-    }
-
-    function setButtonsEnabled(enabled) {
-        document.getElementById('call-btn').disabled = !enabled;
-        document.getElementById('raise-btn').disabled = !enabled;
-        document.getElementById('action-btn').disabled = !enabled;
-    }
-
-    // 수정: enemyTurn 내 오타 방지용으로 아래 안전 코드 반영
-    function enemyTurn() {
-        logMessage(`딜러가 심판의 역습을 가합니다! (위협: ${enemy.intentDamage})`);
-        
-        let actualDmg = Math.max(0, enemy.intentDamage - player.block);
-        player.block = Math.max(0, player.block - enemy.intentDamage);
-        player.hp -= actualDmg;
-        if (player.hp < 0) player.hp = 0;
-
-        logMessage(`일격으로 인해 생명력(판돈)이 ${actualDmg} 소모되었습니다.`);
-        updateUI();
-
-        if (player.hp <= 0) {
-            logMessage("판돈이 바닥나 심연 속으로 추락했습니다... 파산 (GAME OVER)");
-            alert("파산 (게임 오버)!");
-            return;
-        }
-
-        setTimeout(startPlayerTurn, 900);
-    }
-
-    function updateUI() {
-        document.getElementById('player-hp').innerText = player.hp;
-        document.getElementById('player-block').innerText = player.block;
-        document.getElementById('enemy-hp').innerText = enemy.hp;
-
-        let handContainer = document.getElementById('hand-container');
-        handContainer.innerHTML = '';
-        
-        hand.forEach(card => {
-            let cardDiv = document.createElement('div');
-            let isRed = (card.suit === '♥' || card.suit === '◆');
-            cardDiv.className = `card ${isRed ? 'red' : 'black'} ${card.selected ? 'selected' : ''}`;
-            
-            let blockVal = getCardBlock(card.rank);
-            cardDiv.innerHTML = `
-                <div style="font-size: 15px;">${card.suit}</div>
-                <div style="font-size: 22px; font-weight: bold; margin-top: 4px;">${getRankName(card.rank)}</div>
-                <div class="card-stat">🛡️ +${blockVal}</div>
-            `;
-            
-            cardDiv.onclick = () => toggleCard(card.uniqueId);
-            handContainer.appendChild(cardDiv);
-        });
-    }
-</script>
-
-</body>
-</html>
+.lobby-btn.danger:hover {
+    background: #421818;
+    border-color: #ff6b6b;
+    box-shadow: 0 0 12px rgba(255, 0, 0, 0.3);
+}

@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<!-- 🎲 심연의 도박장 시작 화면 (Title Screen) -->
+<!-- 🎲 1. 심연의 도박장 시작 화면 (Title Screen) -->
 <div id="title-screen">
     <div class="title-container">
         <div class="game-title">심 연 의 도 박 사</div>
@@ -16,12 +16,26 @@
             목숨을 판돈 삼아 심연의 딜러와 겨루어라.<br>
             낮은 숫자는 방어, 높은 숫자는 족보가 되리니.
         </p>
-        <button class="start-btn" onclick="startGame()">운명에의 초대 (게임 시작)</button>
+        <button class="start-btn" onclick="openLobby()">운명에의 초대 (입장하기)</button>
     </div>
 </div>
 
-<!-- 🎮 메인 게임 화면 -->
-<div class="container" id="game-main-container" style="opacity: 0.2; pointer-events: none;">
+<!-- 🏛️ 2. Pre-Run 메인 로비 화면 (Lobby Screen) -->
+<div id="lobby-screen">
+    <div class="lobby-container">
+        <div class="lobby-title">심 연 의 로 비</div>
+        <div class="lobby-menu-group">
+            <button class="lobby-btn" onclick="startNewRun()">새 런 시작 (New Run)</button>
+            <button class="lobby-btn" onclick="alert('추후 업데이트 예정입니다.')">이어하기 (Continue)</button>
+            <button class="lobby-btn" onclick="openCharacterInfo()">도박사 명단 (Characters)</button>
+            <button class="lobby-btn" onclick="openHelpModal()">도움말 (Help & Rules)</button>
+            <button class="lobby-btn danger" onclick="returnToTitleFromLobby()">타이틀로 돌아가기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🎮 3. 메인 게임 화면 -->
+<div class="container" id="game-main-container" style="display: none;">
     <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1)</h2>
     
     <div class="status-box">
@@ -46,7 +60,7 @@
         <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
         <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
         <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
-        <button onclick="returnToTitle()" style="background: #222; color: #aaa;">타이틀로 돌아가기</button>
+        <button onclick="returnToLobby()" style="background: #222; color: #aaa;">로비로 돌아가기</button>
     </div>
 
     <h3>심연의 로그 기록</h3>
@@ -82,30 +96,62 @@
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
-    function startGame() {
+    // 타이틀 -> 로비로 이동
+    function openLobby() {
         const titleScreen = document.getElementById('title-screen');
         titleScreen.style.opacity = '0';
         setTimeout(() => {
             titleScreen.style.display = 'none';
-        }, 600);
+            const lobbyScreen = document.getElementById('lobby-screen');
+            lobbyScreen.style.display = 'flex';
+            lobbyScreen.style.opacity = '1';
+        }, 500);
+    }
 
-        const mainContainer = document.getElementById('game-main-container');
-        mainContainer.style.opacity = '1';
-        mainContainer.style.pointerEvents = 'auto';
+    // 로비 -> 타이틀로 복귀
+    function returnToTitleFromLobby() {
+        const lobbyScreen = document.getElementById('lobby-screen');
+        lobbyScreen.style.opacity = '0';
+        setTimeout(() => {
+            lobbyScreen.style.display = 'none';
+            const titleScreen = document.getElementById('title-screen');
+            titleScreen.style.display = 'flex';
+            titleScreen.style.opacity = '1';
+        }, 500);
+    }
+
+    // 로비 -> 새 런 시작 (게임 진입)
+    function startNewRun() {
+        const lobbyScreen = document.getElementById('lobby-screen');
+        lobbyScreen.style.opacity = '0';
+        setTimeout(() => {
+            lobbyScreen.style.display = 'none';
+            const mainContainer = document.getElementById('game-main-container');
+            mainContainer.style.display = 'block';
+            mainContainer.style.opacity = '1';
+        }, 500);
 
         initGame();
     }
 
-    function returnToTitle() {
-        const titleScreen = document.getElementById('title-screen');
-        titleScreen.style.display = 'flex';
-        setTimeout(() => {
-            titleScreen.style.opacity = '1';
-        }, 10);
-
+    // 게임 중 로비로 복귀
+    function returnToLobby() {
         const mainContainer = document.getElementById('game-main-container');
-        mainContainer.style.opacity = '0.2';
-        mainContainer.style.pointerEvents = 'none';
+        mainContainer.style.display = 'none';
+
+        const lobbyScreen = document.getElementById('lobby-screen');
+        lobbyScreen.style.display = 'flex';
+        setTimeout(() => {
+            lobbyScreen.style.opacity = '1';
+        }, 10);
+    }
+
+    function openCharacterInfo() {
+        alert("[도박사 명단]\n현재 캐릭터: 타락한 도박사 (기본 HP 100)\n특성: 냉혹한 심판자에게 맞서는 자.");
+    }
+
+    function openHelpModal() {
+        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block) 제공\n- 높은 숫자 및 족보(J~A, 페어, 플러시 등): 강력한 공격력 발휘\n- 콜/레이즈: HP를 소모하여 카드를 교체하는 딜러 매수 시스템");
     }
 
     function initGame() {
@@ -268,14 +314,12 @@
     function enemyTurn() {
         logMessage(`딜러가 심판의 역습을 가합니다! (위협: ${enemy.intentDamage})`);
         
-        let actualDamage = enemy.intentDamage - player.block;
-        if (actualDamage < 0) actualDamage = 0;
-        
+        let actualDmg = Math.max(0, enemy.intentDamage - player.block);
         player.block = Math.max(0, player.block - enemy.intentDamage);
-        player.hp -= actualDamage;
+        player.hp -= actualDmg;
         if (player.hp < 0) player.hp = 0;
 
-        logMessage(`일격으로 인해 생명력(판돈)이 ${actualDamage} 소모되었습니다.`);
+        logMessage(`일격으로 인해 생명력(판돈)이 ${actualDmg} 소모되었습니다.`);
         updateUI();
 
         if (player.hp <= 0) {
