@@ -266,3 +266,79 @@ button:disabled {
     border-color: #ff6b6b;
     box-shadow: 0 0 12px rgba(255, 0, 0, 0.3);
 }
+
+/* --- 캐릭터 선택 화면 (Character Selection) 스타일 --- */
+#character-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, #140d18 0%, #070509 95%);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 950;
+    transition: opacity 0.5s ease;
+}
+
+.char-selection-container {
+    text-align: center;
+    padding: 30px;
+    background: rgba(18, 13, 20, 0.95);
+    border: 1px solid #3a2e1d;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(212, 175, 55, 0.04);
+    max-width: 700px;
+    width: 90%;
+}
+
+.char-cards-wrapper {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 25px 0;
+    flex-wrap: wrap;
+}
+
+.char-card {
+    background: #1b1520;
+    border: 2px solid #3a2e1d;
+    border-radius: 8px;
+    padding: 20px;
+    width: 200px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.char-card:hover {
+    border-color: #d4af37;
+    background: #261d2d;
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+}
+
+.char-name {
+    font-size: 17px;
+    font-weight: bold;
+    color: #d4af37;
+    margin-bottom: 8px;
+    border-bottom: 1px dashed #4a3b2c;
+    padding-bottom: 6px;
+}
+
+.char-desc {
+    font-size: 12px;
+    color: #a89f91;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.char-stat {
+    font-size: 12px;
+    color: #ff6b6b;
+    font-weight: bold;
+}

@@ -25,7 +25,7 @@
     <div class="lobby-container">
         <div class="lobby-title">심 연 의 로 비</div>
         <div class="lobby-menu-group">
-            <button class="lobby-btn" onclick="startNewRun()">새 런 시작 (New Run)</button>
+            <button class="lobby-btn" onclick="openCharacterSelection()">새 런 시작 (New Run)</button>
             <button class="lobby-btn" onclick="alert('추후 업데이트 예정입니다.')">이어하기 (Continue)</button>
             <button class="lobby-btn" onclick="openCharacterInfo()">도박사 명단 (Characters)</button>
             <button class="lobby-btn" onclick="openHelpModal()">도움말 (Help & Rules)</button>
@@ -34,14 +34,47 @@
     </div>
 </div>
 
-<!-- 🎮 3. 메인 게임 화면 -->
+<!-- 🎴 3. 도박사 선택 화면 (Character Selection Screen) -->
+<div id="character-screen">
+    <div class="char-selection-container">
+        <div class="lobby-title" style="margin-bottom: 15px;">도 박 사 를 선 택 하 세 요</div>
+        <p style="color: #a89f91; font-size: 13px; margin-bottom: 20px;">어떤 영혼을 담보로 심연의 판에 뛰어드시겠습니까?</p>
+        
+        <div class="char-cards-wrapper">
+            <!-- 캐릭터 1: 타락한 도박사 -->
+            <div class="char-card" onclick="selectCharacter('gambler', 100)">
+                <div class="char-name">타락한 도박사</div>
+                <div class="char-desc">정석적인 딜러 매수와 균형 잡힌 심리전을 펼치는 표준적인 도박사.</div>
+                <div class="char-stat">시작 판돈(HP): 100</div>
+            </div>
+
+            <!-- 캐릭터 2: 사기꾼 -->
+            <div class="char-card" onclick="selectCharacter('cheater', 75)">
+                <div class="char-name">사기꾼</div>
+                <div class="char-desc">날카로운 손기술을 지녔으나, 실패할 경우의 대가가 치명적인 고위험 클래스.</div>
+                <div class="char-stat">시작 판돈(HP): 75</div>
+            </div>
+
+            <!-- 캐릭터 3: 영혼을 파는 자 -->
+            <div class="char-card" onclick="selectCharacter('broker', 125)">
+                <div class="char-name">영혼을 파는 자</div>
+                <div class="char-desc">방어 대신 거대한 생명력의 밀어붙임으로 승부를 보는 묵직한 도박사.</div>
+                <div class="char-stat">시작 판돈(HP): 125</div>
+            </div>
+        </div>
+
+        <button class="lobby-btn danger" onclick="returnToLobbyFromChar()" style="margin-top: 10px;">로비로 돌아가기</button>
+    </div>
+</div>
+
+<!-- 🎮 4. 메인 게임 화면 -->
 <div class="container" id="game-main-container" style="display: none;">
-    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.1)</h2>
+    <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.2)</h2>
     
     <div class="status-box">
         <div>
-            <h3>플레이어 (타락한 도박사)</h3>
-            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff6b6b; font-weight: bold;">100</span> / 100</p>
+            <h3>플레이어 (<span id="player-class-name">타락한 도박사</span>)</h3>
+            <p>체력 / 판돈 (HP): <span id="player-hp" style="color: #ff6b6b; font-weight: bold;">100</span> / <span id="player-max-hp">100</span></p>
             <p>방어력 (Block): <span id="player-block">0</span></p>
         </div>
         <div>
@@ -68,7 +101,7 @@
 </div>
 
 <script>
-    let player = { hp: 100, maxHp: 100, block: 0 };
+    let player = { name: "타락한 도박사", hp: 100, maxHp: 100, block: 0 };
     let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
     
     let deck = [];
@@ -96,7 +129,7 @@
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
-    // 타이틀 -> 로비로 이동
+    // 타이틀 -> 로비
     function openLobby() {
         const titleScreen = document.getElementById('title-screen');
         titleScreen.style.opacity = '0';
@@ -108,7 +141,6 @@
         }, 500);
     }
 
-    // 로비 -> 타이틀로 복귀
     function returnToTitleFromLobby() {
         const lobbyScreen = document.getElementById('lobby-screen');
         lobbyScreen.style.opacity = '0';
@@ -120,12 +152,44 @@
         }, 500);
     }
 
-    // 로비 -> 새 런 시작 (게임 진입)
-    function startNewRun() {
+    // 로비 -> 캐릭터 선택 화면
+    function openCharacterSelection() {
         const lobbyScreen = document.getElementById('lobby-screen');
         lobbyScreen.style.opacity = '0';
         setTimeout(() => {
             lobbyScreen.style.display = 'none';
+            const charScreen = document.getElementById('character-screen');
+            charScreen.style.display = 'flex';
+            charScreen.style.opacity = '1';
+        }, 500);
+    }
+
+    function returnToLobbyFromChar() {
+        const charScreen = document.getElementById('character-screen');
+        charScreen.style.opacity = '0';
+        setTimeout(() => {
+            charScreen.style.display = 'none';
+            const lobbyScreen = document.getElementById('lobby-screen');
+            lobbyScreen.style.display = 'flex';
+            lobbyScreen.style.opacity = '1';
+        }, 500);
+    }
+
+    // 캐릭터 선택 완료 -> 본 게임 진입
+    function selectCharacter(type, maxHp) {
+        if (type === 'gambler') player.name = "타락한 도박사";
+        else if (type === 'cheater') player.name = "사기꾼";
+        else if (type === 'broker') player.name = "영혼을 파는 자";
+
+        player.maxHp = maxHp;
+        player.hp = maxHp;
+
+        document.getElementById('player-class-name').innerText = player.name;
+
+        const charScreen = document.getElementById('character-screen');
+        charScreen.style.opacity = '0';
+        setTimeout(() => {
+            charScreen.style.display = 'none';
             const mainContainer = document.getElementById('game-main-container');
             mainContainer.style.display = 'block';
             mainContainer.style.opacity = '1';
@@ -147,15 +211,14 @@
     }
 
     function openCharacterInfo() {
-        alert("[도박사 명단]\n현재 캐릭터: 타락한 도박사 (기본 HP 100)\n특성: 냉혹한 심판자에게 맞서는 자.");
+        alert("[도박사 명단]\n1. 타락한 도박사 (HP 100): 정석적인 밸런스형.\n2. 사기꾼 (HP 75): 고위험 고귀족형.\n3. 영혼을 파는 자 (HP 125): 거대한 생명력형.");
     }
 
     function openHelpModal() {
-        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block) 제공\n- 높은 숫자 및 족보(J~A, 페어, 플러시 등): 강력한 공격력 발휘\n- 콜/레이즈: HP를 소모하여 카드를 교체하는 딜러 매수 시스템");
+        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block)\n- 높은 숫자 및 족보(J~A, 페어 등): 강력한 공격력\n- 콜/레이즈: HP를 소모하여 카드 교체");
     }
 
     function initGame() {
-        player.hp = 100;
         player.block = 0;
         enemy.hp = 150;
         
@@ -168,7 +231,7 @@
 
         shuffleDeck();
         document.getElementById('log').innerHTML = '';
-        logMessage("심연의 도박판이 열렸습니다. 목숨(HP)을 판돈 삼아 딜러와 겨루세요.");
+        logMessage(`[${player.name}]이(가) 심연의 도박판에 발을 들였습니다. 목숨(HP)을 판돈 삼아 겨루세요.`);
         startPlayerTurn();
     }
 
@@ -339,6 +402,7 @@
 
     function updateUI() {
         document.getElementById('player-hp').innerText = player.hp;
+        document.getElementById('player-max-hp').innerText = player.maxHp;
         document.getElementById('player-block').innerText = player.block;
         document.getElementById('enemy-hp').innerText = enemy.hp;
 
