@@ -1,11 +1,12 @@
+// --- game.js ---
+
 let player = { name: "타락한 도박사", hp: 100, maxHp: 100, block: 0 };
 let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
 
 let masterDeck = []; let currentFloor = 1;
 let deck = []; let discardPile = []; let hand = [];
 
-const suits = ['♠', '♥', '◆', '♣'];
-const ranks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+// ★ suits와 ranks 배열은 data.js로 이동되었습니다.
 
 function drawCard() {
     if (deck.length === 0) {
@@ -37,8 +38,9 @@ function returnToLobbyFromChar() { document.getElementById('character-screen').s
 function returnToLobbyFromMap() { document.getElementById('map-screen').style.display = 'none'; document.getElementById('lobby-screen').style.display = 'flex'; setTimeout(() => document.getElementById('lobby-screen').style.opacity = '1', 10); }
 function returnToLobby() { document.getElementById('game-main-container').style.display = 'none'; document.getElementById('lobby-screen').style.display = 'flex'; setTimeout(() => document.getElementById('lobby-screen').style.opacity = '1', 10); }
 
+// ★ data.js의 CHARACTER_DATA 참조
 function selectCharacter(type, maxHp) {
-    player.name = (type === 'gambler') ? "타락한 도박사" : (type === 'cheater') ? "사기꾼" : "영혼을 파는 자";
+    player.name = CHARACTER_DATA[type] ? CHARACTER_DATA[type].name : "이름 없는 도박사";
     player.maxHp = maxHp; player.hp = maxHp;
     document.getElementById('player-class-name').innerText = player.name;
     initRun(); 
@@ -67,10 +69,16 @@ function enterBattle(type) {
     initBattle(type);
 }
 
+// ★ data.js의 ENEMY_DATA 참조
 function initBattle(type) {
     player.block = 0;
-    if (type === 'elite') { enemy.hp = 300; enemy.maxHp = 300; enemy.intentDamage = 28; document.getElementById('log').innerHTML = `> [${currentFloor}층] 끔찍한 기운의 정예 딜러가 나타났습니다!<br>`; }
-    else { enemy.hp = 150; enemy.maxHp = 150; enemy.intentDamage = 15; document.getElementById('log').innerHTML = `> [${currentFloor}층] 일반 딜러와의 승부가 시작됩니다.<br>`; }
+    
+    let targetEnemy = ENEMY_DATA[type] || ENEMY_DATA['normal'];
+    enemy.hp = targetEnemy.hp; 
+    enemy.maxHp = targetEnemy.hp; 
+    enemy.intentDamage = targetEnemy.intentDamage; 
+    
+    document.getElementById('log').innerHTML = `> [${currentFloor}층] ${targetEnemy.logDesc}<br>`;
     
     deck = masterDeck.map(c => ({ suit: c.suit, rank: c.rank, selected: false, uniqueId: Math.random() }));
     discardPile = []; hand = [];
