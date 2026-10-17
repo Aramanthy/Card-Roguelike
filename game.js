@@ -6,7 +6,6 @@ let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
 let masterDeck = []; let currentFloor = 1;
 let deck = []; let discardPile = []; let hand = [];
 
-// ★ suits와 ranks 배열은 data.js로 이동되었습니다.
 
 function drawCard() {
     if (deck.length === 0) {
@@ -72,20 +71,18 @@ function enterBattle(type) {
 // ★ data.js의 ENEMY_DATA 참조
 function initBattle(type) {
     player.block = 0;
-    
     let targetEnemy = ENEMY_DATA[type] || ENEMY_DATA['normal'];
     enemy.hp = targetEnemy.hp; 
     enemy.maxHp = targetEnemy.hp; 
     enemy.intentDamage = targetEnemy.intentDamage; 
+    enemy.defense = targetEnemy.defense || 20; // 적 방어력 할당
     
     document.getElementById('log').innerHTML = `> [${currentFloor}층] ${targetEnemy.logDesc}<br>`;
-    
     deck = masterDeck.map(c => ({ suit: c.suit, rank: c.rank, selected: false, uniqueId: Math.random() }));
     discardPile = []; hand = [];
     shuffleDeck();
     setTimeout(startPlayerTurn, 500);
 }
-
 function shuffleDeck() { for (let i = deck.length - 1; i > 0; i--) { let j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } }
 
 function startPlayerTurn() {
@@ -130,7 +127,6 @@ function toggleCard(uniqueId) {
     if (card) { card.selected = !card.selected; updateUI(); }
 }
 
-// ★ 콜 로직 복구: 카드 1장 "추가" 드로우
 function dealerCall() {
     if (player.hp <= 5) { logMessage("체력(판돈)이 부족하여 딜러를 매수할 수 없습니다!"); return; }
     player.hp -= 5;
@@ -155,7 +151,6 @@ function dealerCall() {
     }, 300);
 }
 
-// ★ 레이즈 로직 복구: 카드 2장 "추가" 드로우
 function dealerRaise() {
     if (player.hp <= 10) { logMessage("체력(판돈)이 부족하여 레이즈를 할 수 없습니다!"); return; }
     player.hp -= 10;
@@ -184,7 +179,6 @@ function dealerRaise() {
     }, 450);
 }
 
-// ★ 족보 판정 로직 보강: 방어를 위해 6장 이상을 동시 선택해도 플러시/스트레이트가 정상 인식되도록 수정
 function evaluatePokerHand(cards) {
     if (cards.length === 0) return { name: "없음 (공격 안 함)", multiplier: 0, base: 0 };
     
@@ -258,35 +252,60 @@ function autoSelectBestHand() {
 function playTurnAction() {
     let selectedCards = hand.filter(c => c.selected);
     if (selectedCards.length === 0) { logMessage("행동할 카드를 최소 1장 이상 선택하십시오."); return; }
+    
+    // 배팅액(HP) 차감 처리
+    let betSlider = document.getElementById('bet-slider');
+    let betAmount = parseInt(betSlider.value);
+    if (player.hp < betAmount) { logMessage("판돈(HP)이 부족합니다!"); return; }
+    
     setButtonsEnabled(false); document.getElementById('draw-btn').disabled = true;
+    player.hp -= betAmount;
+    logMessage(`--- 🩸 체력 ${betAmount}을(를) 판돈으로 걸고 운명의 주사위를 굴립니다! ---`);
 
-    let totalBlock = 0; selectedCards.forEach(c => { totalBlock += getCardBlock(c.rank); }); player.block += totalBlock;
-    logMessage(`어둠 속에서 ${totalBlock}의 방어막을 전개했습니다.`);
-    let result = evaluatePokerHand(selectedCards); let finalDamage = Math.floor(result.base * result.multiplier);
-    logMessage(`[운명의 판정] ${result.name}! (합: ${result.base} × 배율: ${result.multiplier})`); 
+    // 스탯 및 확률 연산
+    let result = evaluatePokerHand(selectedCards); 
+    let atkStat = result.base;
+    let defStat = selectedCards.reduce((sum, c) => sum + getCardBlock(c.rank), 0);
+    
+    let hitChance = Math.max(5, Math.min(95, 50 + (atkStat - enemy.defense)));
+    let defChance = Math.max(5, Math.min(95, 50 + (defStat - enemy.intentDamage)));
+
+    // 1~100 주사위 굴림
+    let atkRoll = Math.floor(Math.random() * 100) + 1;
+    let defRoll = Math.floor(Math.random() * 100) + 1;
+    let atkSuccess = atkRoll <= hitChance;
+    let defSuccess = defRoll <= defChance;
+
+    let finalDamage = atkSuccess ? Math.floor(betAmount * result.multiplier) : 0;
+    let finalBlock = defSuccess ? Math.floor(betAmount * result.multiplier) : 0;
+
+    logMessage(`[공격 판정] 필요 확률 ${hitChance}% / 주사위 ${atkRoll} ➔ ${atkSuccess ? `<span style="color:#ff6b6b">명중! (${finalDamage} 피해)</span>` : '빗나감..'}`);
+    logMessage(`[방어 판정] 필요 확률 ${defChance}% / 주사위 ${defRoll} ➔ ${defSuccess ? `<span style="color:#4a90e2">성공! (${finalBlock} 방어)</span>` : '방어 실패..'}`);
+
+    player.block += finalBlock;
 
     let domCards = document.querySelectorAll('#hand-container .card'); 
     
-    // 1단계: 미선택 카드(족보 미포함) 먼저 묘지로 빠르게 꽂힘!
+    // 미선택 카드 버리기
     domCards.forEach((cardDOM, index) => { 
         if (!hand[index].selected) cardDOM.classList.add('discarding'); 
     });
 
-    // 2단계: 약간의 딜레이(0.15초) 후, 족보 카드들이 적을 향해 강력하게 솟구침
+    // 선택된 카드 공격 연출 (명중했을 때만 적을 향해 날아감)
     setTimeout(() => {
         domCards.forEach((cardDOM, index) => { 
-            if (hand[index].selected) cardDOM.classList.add('attacking'); 
+            if (hand[index].selected) {
+                if (atkSuccess) cardDOM.classList.add('attacking'); 
+                else cardDOM.classList.add('discarding'); // 빗나가면 그냥 쓰레기통으로
+            }
         });
 
-        // 3단계: 카드가 적에게 닿아 때리는 정확한 타이밍(약 0.12초 후)에 데미지 수치 깎임
         setTimeout(() => {
-            logMessage(`딜러의 심장을 겨냥해 ${finalDamage}의 피해를 입혔습니다!`);
-            enemy.hp -= finalDamage; if (enemy.hp < 0) enemy.hp = 0;
+            if (atkSuccess) {
+                enemy.hp -= finalDamage; if (enemy.hp < 0) enemy.hp = 0;
+                document.getElementById('enemy-hp').innerText = enemy.hp; 
+            }
             
-            // 화면의 적 체력을 즉시 깎아 확실한 타격감 부여
-            document.getElementById('enemy-hp').innerText = enemy.hp; 
-
-            // 4단계: 타격 후 카드가 묘지로 완전히 떨어지기를 기다린 뒤 턴 종료 처리
             setTimeout(() => {
                 discardPile.push(...hand); hand = []; updateUI();
                 if (enemy.hp <= 0) { 
@@ -295,11 +314,9 @@ function playTurnAction() {
                     currentFloor++; openMap(); return; 
                 }
                 logMessage("---- [적의 턴 시작] ----"); setTimeout(enemyTurn, 600);
-            }, 380); // 남은 낙하 애니메이션 대기
-
-        }, 120); // 타격 타이밍
-
-    }, 150); // 발사 딜레이
+            }, 380); 
+        }, 120); 
+    }, 150); 
 }
 
 function enemyTurn() {
@@ -320,12 +337,35 @@ function updateUI() {
 
     let selectedCards = hand.filter(c => c.selected);
     let evalResult = evaluatePokerHand(selectedCards);
-    let finalDamage = Math.floor(evalResult.base * evalResult.multiplier);
-    let totalBlock = selectedCards.reduce((sum, c) => sum + getCardBlock(c.rank), 0);
+    
+    let atkStat = evalResult.base;
+    let defStat = selectedCards.reduce((sum, c) => sum + getCardBlock(c.rank), 0);
+    
+    let currentEnemyDef = enemy.defense || 20;
+    let hitChance = Math.max(5, Math.min(95, 50 + (atkStat - currentEnemyDef)));
+    let defChance = Math.max(5, Math.min(95, 50 + (defStat - enemy.intentDamage)));
 
     document.getElementById('current-hand-name').innerText = evalResult.name;
-    document.getElementById('current-hand-dmg').innerText = finalDamage;
-    document.getElementById('current-hand-blk').innerText = totalBlock;
+    document.getElementById('current-multiplier').innerText = evalResult.multiplier;
+    document.getElementById('current-atk-stat').innerText = atkStat;
+    document.getElementById('current-def-stat').innerText = defStat;
+    
+    document.getElementById('enemy-def-display').innerText = currentEnemyDef;
+    document.getElementById('enemy-atk-display').innerText = enemy.intentDamage;
+    document.getElementById('hit-chance').innerText = hitChance;
+    document.getElementById('def-chance').innerText = defChance;
+
+    let betSlider = document.getElementById('bet-slider');
+    if (betSlider) {
+        betSlider.max = Math.max(1, player.hp);
+        let betVal = parseInt(betSlider.value);
+        if (betVal > player.hp) betVal = player.hp;
+        document.getElementById('bet-amount-display').innerText = betVal;
+        
+        let expectedOutput = Math.floor(betVal * evalResult.multiplier);
+        document.getElementById('expected-dmg').innerText = expectedOutput;
+        document.getElementById('expected-blk').innerText = expectedOutput;
+    }
 
     let handContainer = document.getElementById('hand-container');
     handContainer.innerHTML = '';
@@ -343,11 +383,7 @@ function updateUI() {
         }
         
         let blockVal = getCardBlock(card.rank);
-        cardDiv.innerHTML = `
-            <div style="font-size: 15px;">${card.suit}</div>
-            <div style="font-size: 22px; font-weight: bold; margin-top: 4px;">${getRankName(card.rank)}</div>
-            <div class="card-stat">🛡️ +${blockVal}</div>
-        `;
+        cardDiv.innerHTML = `<div style="font-size: 15px;">${card.suit}</div><div style="font-size: 22px; font-weight: bold; margin-top: 4px;">${getRankName(card.rank)}</div><div class="card-stat">🛡️ +${blockVal}</div>`;
         
         if (card.dealState === 'revealed' || !card.dealState) { cardDiv.onclick = () => toggleCard(card.uniqueId); }
         handContainer.appendChild(cardDiv);

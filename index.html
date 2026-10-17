@@ -114,20 +114,39 @@
         </div>
     </div>
 
-    <!-- 🎴 교체할 '내 손패 및 카드 뭉치(Pile)' UI 영역 -->
+    <!-- 🎴 내 손패 및 카드 뭉치(Pile) 전체 영역 -->
     <div style="background: #141017; padding: 20px; border-radius: 8px; border: 1px solid #3a2e1d; margin-bottom: 20px;">
-        <!-- ★ 추가된 부분: 현재 완성된 족보를 보여주는 전광판 -->
-        <div style="text-align: center; margin-bottom: 20px; background: #0a080c; padding: 10px; border-radius: 6px; border-bottom: 2px solid #3a2e1d;">
-            <div style="font-size: 13px; color: #a89f91; margin-bottom: 4px;">현재 선택된 패 (족보 및 위력)</div>
-            <div id="current-hand-name" style="font-size: 22px; font-weight: bold; color: #d4af37; letter-spacing: 1px; text-shadow: 0 0 8px rgba(212,175,55,0.4);">패를 선택하세요</div>
-            <div style="font-size: 14px; margin-top: 6px;">
-                <span style="color: #ff6b6b; margin-right: 15px;">⚔️ 예상 피해: <span id="current-hand-dmg" style="font-weight: bold;">0</span></span>
-                <span style="color: #4a90e2;">🛡️ 예상 방어: <span id="current-hand-blk" style="font-weight: bold;">0</span></span>
+        
+        <!-- 1. 확률 및 배팅 전광판 UI -->
+        <div style="text-align: center; margin-bottom: 20px; background: #0a080c; padding: 15px; border-radius: 6px; border-bottom: 2px solid #3a2e1d;">
+            <div style="font-size: 13px; color: #a89f91; margin-bottom: 4px;">현재 선택된 패 (족보 배율: <span id="current-multiplier" style="color:#d4af37; font-weight:bold;">1</span>x)</div>
+            <div id="current-hand-name" style="font-size: 24px; font-weight: bold; color: #d4af37; letter-spacing: 1px; margin-bottom: 10px;">패를 선택하세요</div>
+            
+            <div style="display: flex; justify-content: center; gap: 30px; font-size: 14px; margin-bottom: 15px;">
+                <div style="color: #ff6b6b; background: #2a1111; padding: 8px 15px; border-radius: 4px; border: 1px solid #5a2222; width: 200px;">
+                    <div>⚔️ 내 공격 수치: <span id="current-atk-stat" style="font-weight: bold;">0</span></div>
+                    <div style="font-size:12px; margin-top:4px;">적 방어(<span id="enemy-def-display">0</span>) 대비<br>명중률: <span id="hit-chance" style="font-weight:bold; color:#fff;">0</span>%</div>
+                </div>
+                <div style="color: #4a90e2; background: #111a2a; padding: 8px 15px; border-radius: 4px; border: 1px solid #223a5a; width: 200px;">
+                    <div>🛡️ 내 방어 수치: <span id="current-def-stat" style="font-weight: bold;">0</span></div>
+                    <div style="font-size:12px; margin-top:4px;">적 위협(<span id="enemy-atk-display">0</span>) 대비<br>방어율: <span id="def-chance" style="font-weight:bold; color:#fff;">0</span>%</div>
+                </div>
+            </div>
+
+            <div style="padding-top: 15px; border-top: 1px dashed #3a2e1d; display: flex; flex-direction: column; align-items: center;">
+                <div style="margin-bottom: 8px;">
+                    <label style="color: #e0d6c3; font-size: 15px; font-weight: bold;">🩸 행동에 걸 판돈(HP): </label>
+                    <input type="range" id="bet-slider" min="1" max="100" value="10" oninput="updateUI();" style="vertical-align: middle; cursor: pointer;">
+                    <span id="bet-amount-display" style="color: #ff6b6b; font-weight: bold; font-size: 18px; margin-left: 5px;">10</span>
+                </div>
+                <div style="font-size: 13px; color: #a89f91;">
+                    굴림 성공 시 예상 결과 ➔ <span style="color:#ff6b6b">피해: <span id="expected-dmg" style="font-weight:bold;">10</span></span> / <span style="color:#4a90e2">방어막: <span id="expected-blk" style="font-weight:bold;">10</span></span>
+                </div>
             </div>
         </div>
-        
+
+        <!-- 2. 카드 덱, 손패, 버린 패 영역 -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-            
             <!-- 좌측: 카드 덱 (Draw Pile) -->
             <div style="text-align: center; width: 90px;">
                 <div class="card" style="background: #2a2218; border-color: #6b5332; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: default; margin: 0 auto; box-shadow: -2px 2px 0 #111, -4px 4px 0 #2a2218, -6px 6px 0 #0a080c;">🎴</div>
@@ -142,8 +161,8 @@
                 <div class="card" style="background: #111; border-color: #333; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: default; margin: 0 auto; opacity: 0.7;">🗑️</div>
                 <div style="color: #a89f91; font-size: 13px; font-weight: bold; margin-top: 10px;">버린 패: <span id="discard-count">0</span></div>
             </div>
-            
         </div>
+        
     </div>
 
     <div class="btn-group">
