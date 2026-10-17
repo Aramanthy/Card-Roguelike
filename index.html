@@ -85,7 +85,13 @@
     </div>
 
     <div>
-        <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
+            <div style="color: #a89f91; font-size: 14px; margin-bottom: 10px;">
+                🎴 남은 덱: <span id="deck-count" style="color: #d4af37; font-weight: bold;">0</span>장 | 
+                🗑️ 버린 패: <span id="discard-count" style="color: #d4af37; font-weight: bold;">0</span>장
+            </div>
+        </div>
         <div id="hand-container" style="min-height: 140px;"></div>
     </div>
 
@@ -105,10 +111,23 @@
     let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
     
     let deck = [];
+    let discardPile = []; // ★ 추가: 버린 카드 더미
     let hand = [];
 
     const suits = ['♠', '♥', '◆', '♣'];
     const ranks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+
+    // ★ 추가: 카드 뽑기 및 덱 순환을 관리하는 함수
+    function drawCard() {
+        if (deck.length === 0) {
+            if (discardPile.length === 0) return null; // 뽑을 카드가 아예 없을 경우 방어 코드
+            logMessage("덱이 모두 소진되어 버린 카드를 다시 섞습니다.");
+            deck = discardPile;
+            discardPile = [];
+            shuffleDeck();
+        }
+        return deck.pop();
+    }
 
     function getRankName(r) {
         if (r === 11) return 'J';
@@ -129,7 +148,7 @@
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
-    // 타이틀 -> 로비
+    // --- 화면 전환 로직 ---
     function openLobby() {
         const titleScreen = document.getElementById('title-screen');
         titleScreen.style.opacity = '0';
@@ -152,7 +171,6 @@
         }, 500);
     }
 
-    // 로비 -> 캐릭터 선택 화면
     function openCharacterSelection() {
         const lobbyScreen = document.getElementById('lobby-screen');
         lobbyScreen.style.opacity = '0';
@@ -175,7 +193,6 @@
         }, 500);
     }
 
-    // 캐릭터 선택 완료 -> 본 게임 진입
     function selectCharacter(type, maxHp) {
         if (type === 'gambler') player.name = "타락한 도박사";
         else if (type === 'cheater') player.name = "사기꾼";
@@ -183,7 +200,6 @@
 
         player.maxHp = maxHp;
         player.hp = maxHp;
-
         document.getElementById('player-class-name').innerText = player.name;
 
         const charScreen = document.getElementById('character-screen');
@@ -198,16 +214,12 @@
         initGame();
     }
 
-    // 게임 중 로비로 복귀
     function returnToLobby() {
         const mainContainer = document.getElementById('game-main-container');
         mainContainer.style.display = 'none';
-
         const lobbyScreen = document.getElementById('lobby-screen');
         lobbyScreen.style.display = 'flex';
-        setTimeout(() => {
-            lobbyScreen.style.opacity = '1';
-        }, 10);
+        setTimeout(() => { lobbyScreen.style.opacity = '1'; }, 10);
     }
 
     function openCharacterInfo() {
@@ -218,11 +230,13 @@
         alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block)\n- 높은 숫자 및 족보(J~A, 페어 등): 강력한 공격력\n- 콜/레이즈: HP를 소모하여 카드 교체");
     }
 
+    // --- 게임 메인 로직 ---
     function initGame() {
         player.block = 0;
         enemy.hp = 150;
         
         deck = [];
+        discardPile = []; // ★ 초기화 시 버린 패도 비워줌
         suits.forEach(suit => {
             ranks.forEach(rank => {
                 deck.push({ suit: suit, rank: rank, selected: true, uniqueId: Math.random() });
@@ -244,18 +258,24 @@
 
     function startPlayerTurn() {
         player.block = 0;
-        hand = [];
+        
+        // ★ 내 턴 시작 전 손에 카드가 남아있다면 버린 패로 모두 보냄
+        if (hand.length > 0) {
+            discardPile.push(...hand);
+            hand = [];
+        }
         
         for (let i = 0; i < 5; i++) {
-            if (deck.length === 0) shuffleDeck();
-            let card = deck.pop();
-            card.selected = true;
-            hand.push(card);
+            let card = drawCard(); // ★ drawCard() 사용
+            if(card) {
+                card.selected = true;
+                hand.push(card);
+            }
         }
 
         setButtonsEnabled(true);
         updateUI();
-        logMessage("새로운 5장의 카드가 배분되었습니다.");
+        logMessage("---- [플레이어 턴 시작] 새로운 5장의 카드가 배분되었습니다. ----");
     }
 
     function toggleCard(uniqueId) {
@@ -272,14 +292,18 @@
             return;
         }
         player.hp -= 5;
-        if (deck.length === 0) shuffleDeck();
         
         let indexToReplace = hand.findIndex(c => !c.selected);
         if (indexToReplace === -1) indexToReplace = 0;
         
-        let newCard = deck.pop();
-        newCard.selected = true;
-        hand[indexToReplace] = newCard;
+        // ★ 교체되는 카드를 버린 카드 더미로 이동
+        discardPile.push(hand[indexToReplace]);
+        
+        let newCard = drawCard();
+        if(newCard) {
+            newCard.selected = true;
+            hand[indexToReplace] = newCard;
+        }
 
         logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 은밀히 교체했습니다 (콜).");
         updateUI();
@@ -293,13 +317,17 @@
         player.hp -= 10;
         
         for(let i=0; i<2; i++) {
-            if (deck.length === 0) shuffleDeck();
             let indexToReplace = hand.findIndex(c => !c.selected);
             if (indexToReplace === -1) indexToReplace = i;
             
-            let newCard = deck.pop();
-            newCard.selected = true;
-            hand[indexToReplace] = newCard;
+            // ★ 교체되는 카드를 버린 카드 더미로 이동
+            discardPile.push(hand[indexToReplace]);
+            
+            let newCard = drawCard();
+            if(newCard){
+                newCard.selected = true;
+                hand[indexToReplace] = newCard;
+            }
         }
 
         logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 뒤바꿨습니다 (레이즈!).");
@@ -363,6 +391,10 @@
         enemy.hp -= finalDamage;
         if (enemy.hp < 0) enemy.hp = 0;
 
+        // ★ 내 턴 종료: 손에 있던 카드를 모두 버린 카드 더미로 보냄
+        discardPile.push(...hand);
+        hand = []; 
+
         updateUI();
 
         if (enemy.hp <= 0) {
@@ -371,6 +403,7 @@
             return;
         }
 
+        logMessage("---- [적의 턴 시작] ----");
         setTimeout(enemyTurn, 900);
     }
 
@@ -405,6 +438,10 @@
         document.getElementById('player-max-hp').innerText = player.maxHp;
         document.getElementById('player-block').innerText = player.block;
         document.getElementById('enemy-hp').innerText = enemy.hp;
+
+        // ★ 새로 추가된 UI (남은 덱 장수, 버린 패 장수) 업데이트
+        document.getElementById('deck-count').innerText = deck.length;
+        document.getElementById('discard-count').innerText = discardPile.length;
 
         let handContainer = document.getElementById('hand-container');
         handContainer.innerHTML = '';
