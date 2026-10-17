@@ -356,25 +356,53 @@ button:disabled {
 
 /* --- 카드 뽑기 & 버리기 애니메이션 (동선 및 충돌 수정) --- */
 
-/* 1. 드로우: 왼쪽 덱 위치에서 중앙으로 날아옴 */
-@keyframes drawFromDeck {
+/* --- 1. 선택된 카드 상승 폭 30%로 증가 --- */
+.card.selected { 
+    border-color: #d4af37 !important; 
+    background: #fffdf5 !important; 
+    transform: translateY(-35px) !important; /* 카드 높이(115px)의 약 30% 상승 */
+    box-shadow: 0 15px 30px rgba(212, 175, 55, 0.5) !important;
+}
+
+/* --- 2. 카드 뒷면 디자인 --- */
+.card.back {
+    background: repeating-linear-gradient(45deg, #1f1810, #1f1810 10px, #120e09 10px, #120e09 20px) !important;
+    border: 2px solid #4a3b2c !important;
+    cursor: default;
+}
+.card.back > * { opacity: 0; } /* 뒷면일 때 텍스트 숨김 */
+
+/* --- 3. 딜링(나눠주기) 애니메이션 --- */
+.card.dealing {
+    animation: dealFromDeck 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards; /* backwards: 딜레이 시간 동안 투명도 0 유지 */
+}
+@keyframes dealFromDeck {
     0% { transform: translateX(-250px) translateY(-30px) scale(0.3) rotate(-30deg); opacity: 0; }
     100% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); opacity: 1; }
 }
 
-.card.drawing {
-    animation: drawFromDeck 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    transition: none !important; /* 기존 호버 transition과 애니메이션 충돌 방지 */
+/* --- 4. 쭈루룩 뒤집기(Flip) 애니메이션 --- */
+.card.flipping { animation: flipCard 0.4s ease-out forwards; }
+@keyframes flipCard {
+    0% { transform: scaleX(1); background: repeating-linear-gradient(45deg, #1f1810, #1f1810 10px, #120e09 10px, #120e09 20px); border-color: #4a3b2c; }
+    49% { transform: scaleX(0); background: repeating-linear-gradient(45deg, #1f1810, #1f1810 10px, #120e09 10px, #120e09 20px); border-color: #4a3b2c; }
+    50% { transform: scaleX(0); background: #f4eee1; border-color: #b39b68; }
+    100% { transform: scaleX(1); background: #f4eee1; border-color: #b39b68; }
 }
 
-/* 2. 버리기: 중앙에서 오른쪽 버린 패 위치로 빨려 들어감 */
+.card.flipping > * { animation: showContent 0.4s forwards; }
+@keyframes showContent {
+    0%, 49% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
+
+/* --- 5. 버리기(묘지) 애니메이션 --- */
+.card.discarding {
+    animation: moveToGraveyard 0.4s ease-in forwards;
+    transition: none !important;
+    pointer-events: none;
+}
 @keyframes moveToGraveyard {
     0% { transform: translateX(0) scale(1) rotate(0deg); opacity: 1; }
     100% { transform: translateX(250px) translateY(30px) scale(0.3) rotate(30deg); opacity: 0; }
-}
-
-.card.discarding {
-    animation: moveToGraveyard 0.4s ease-in forwards;
-    transition: none !important; /* 기존 호버 transition과 애니메이션 충돌 방지 */
-    pointer-events: none;
 }
