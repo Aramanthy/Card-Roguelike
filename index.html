@@ -114,21 +114,37 @@
         </div>
     </div>
 
-    <div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-            <h3>내 손패 (선택한 카드로 행동. 낮을수록 방어, 높을수록 공격 족보!)</h3>
-            <div style="color: #a89f91; font-size: 14px; margin-bottom: 10px;">
-                🎴 남은 덱: <span id="deck-count" style="color: #d4af37; font-weight: bold;">0</span>장 | 
-                🗑️ 버린 패: <span id="discard-count" style="color: #d4af37; font-weight: bold;">0</span>장
+    <!-- 🎴 교체할 '내 손패 및 카드 뭉치(Pile)' UI 영역 -->
+    <div style="background: #141017; padding: 20px; border-radius: 8px; border: 1px solid #3a2e1d; margin-bottom: 20px;">
+        <h3 style="text-align: center; margin-top: 0; color: #d4af37;">내 손패 (낮을수록 방어, 높을수록 공격 족보!)</h3>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+            
+            <!-- 좌측: 카드 덱 (Draw Pile) -->
+            <div style="text-align: center; width: 90px;">
+                <div class="card" style="background: #2a2218; border-color: #6b5332; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: default; margin: 0 auto; box-shadow: -2px 2px 0 #111, -4px 4px 0 #2a2218, -6px 6px 0 #0a080c;">🎴</div>
+                <div style="color: #d4af37; font-size: 13px; font-weight: bold; margin-top: 10px;">남은 덱: <span id="deck-count">0</span></div>
             </div>
+
+            <!-- 중앙: 손패 (Hand) -->
+            <div id="hand-container" style="display: flex; min-height: 140px; justify-content: center; flex: 1; padding: 0 10px;"></div>
+
+            <!-- 우측: 버린 패 (Discard Pile) -->
+            <div style="text-align: center; width: 90px;">
+                <div class="card" style="background: #111; border-color: #333; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: default; margin: 0 auto; opacity: 0.7;">🗑️</div>
+                <div style="color: #a89f91; font-size: 13px; font-weight: bold; margin-top: 10px;">버린 패: <span id="discard-count">0</span></div>
+            </div>
+            
         </div>
-        <div id="hand-container" style="min-height: 140px;"></div>
     </div>
 
     <div class="btn-group">
-        <button class="dealer-btn" id="call-btn" onclick="dealerCall()">콜 (HP -5) : 카드 1장 교체</button>
-        <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()">레이즈 (HP -10) : 카드 2장 교체</button>
-        <button id="action-btn" onclick="playTurnAction()">행동 개시 (공격 & 방어)</button>
+        <!-- ★ 추가된 드로우 버튼 -->
+        <button id="draw-btn" onclick="drawHand()" style="background: #2E8B57; color: #fff; border-color: #3CB371;">카드 뽑기 (Draw 5)</button>
+        
+        <button class="dealer-btn" id="call-btn" onclick="dealerCall()" disabled>콜 (HP -5) : 카드 1장 교체</button>
+        <button class="dealer-btn" id="raise-btn" onclick="dealerRaise()" disabled>레이즈 (HP -10) : 카드 2장 교체</button>
+        <button id="action-btn" onclick="playTurnAction()" disabled>행동 개시 (공격 & 방어)</button>
         <button onclick="returnToLobby()" style="background: #222; color: #aaa;">로비로 돌아가기</button>
     </div>
 
@@ -140,7 +156,6 @@
     let player = { name: "타락한 도박사", hp: 100, maxHp: 100, block: 0 };
     let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
     
-    // ★ 추가: 마스터 덱 (플레이어가 보유한 전체 덱)과 현재 층수
     let masterDeck = []; 
     let currentFloor = 1;
 
@@ -159,7 +174,9 @@
             discardPile = [];
             shuffleDeck();
         }
-        return deck.pop();
+        let drawn = deck.pop();
+        if (drawn) drawn.isNew = true; // ★ 애니메이션 재생을 위한 새 카드 플래그
+        return drawn;
     }
 
     function getRankName(r) {
@@ -181,7 +198,6 @@
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
-    // --- 화면 전환 로직 ---
     function openLobby() {
         const titleScreen = document.getElementById('title-screen');
         titleScreen.style.opacity = '0';
@@ -245,7 +261,6 @@
         setTimeout(() => { lobbyScreen.style.opacity = '1'; }, 10);
     }
 
-    // --- 런(Run) 시작 로직 ---
     function selectCharacter(type, maxHp) {
         if (type === 'gambler') player.name = "타락한 도박사";
         else if (type === 'cheater') player.name = "사기꾼";
@@ -255,20 +270,19 @@
         player.hp = maxHp;
         document.getElementById('player-class-name').innerText = player.name;
 
-        initRun(); // ★ 런 초기화 실행 (마스터 덱 생성 등)
+        initRun(); 
 
         const charScreen = document.getElementById('character-screen');
         charScreen.style.opacity = '0';
         setTimeout(() => {
             charScreen.style.display = 'none';
-            openMap(); // ★ 전투 대신 지도 화면으로 이동
+            openMap(); 
         }, 500);
     }
 
     function initRun() {
         currentFloor = 1;
         masterDeck = [];
-        // 기본 52장 트럼프 카드를 마스터 덱에 구성
         suits.forEach(suit => {
             ranks.forEach(rank => {
                 masterDeck.push({ suit: suit, rank: rank });
@@ -276,7 +290,6 @@
         });
     }
 
-    // --- 지도 시스템 로직 ---
     function openMap() {
         document.getElementById('current-floor').innerText = currentFloor;
         const mapScreen = document.getElementById('map-screen');
@@ -290,7 +303,7 @@
         alert(`안전 지대에서 휴식을 취했습니다.\n판돈(HP)을 ${healAmount} 회복하여 현재 ${player.hp}가 되었습니다.`);
         
         currentFloor++;
-        openMap(); // 휴식 후 다음 층(지도)으로
+        openMap(); 
     }
 
     function enterBattle(type) {
@@ -306,7 +319,6 @@
         initBattle(type);
     }
 
-    // --- 배틀 메인 로직 ---
     function initBattle(type) {
         player.block = 0;
         
@@ -318,7 +330,6 @@
             document.getElementById('log').innerHTML = `> [${currentFloor}층] 일반 딜러와의 승부가 시작됩니다.<br>`;
         }
 
-        // ★ 매 전투 시작 시 마스터 덱을 복사하여 새 전투 덱 구성
         deck = masterDeck.map(c => ({ suit: c.suit, rank: c.rank, selected: true, uniqueId: Math.random() }));
         discardPile = [];
         hand = [];
@@ -341,7 +352,16 @@
             discardPile.push(...hand);
             hand = [];
         }
-        
+
+        setButtonsEnabled(false);
+        document.getElementById('draw-btn').disabled = false; 
+        updateUI();
+        logMessage("---- [플레이어 턴 시작] 드로우 버튼을 눌러 카드를 뽑으십시오. ----");
+    }
+
+    function drawHand() {
+        document.getElementById('draw-btn').disabled = true; 
+
         for (let i = 0; i < 5; i++) {
             let card = drawCard();
             if(card) {
@@ -350,9 +370,9 @@
             }
         }
 
-        setButtonsEnabled(true);
+        setButtonsEnabled(true); 
         updateUI();
-        logMessage("---- [플레이어 턴 시작] 새로운 5장의 카드가 배분되었습니다. ----");
+        logMessage("새로운 5장의 카드를 손에 쥐었습니다.");
     }
 
     function toggleCard(uniqueId) {
@@ -444,6 +464,7 @@
         }
 
         setButtonsEnabled(false);
+        document.getElementById('draw-btn').disabled = true;
 
         let totalBlock = 0;
         selectedCards.forEach(c => {
@@ -460,26 +481,30 @@
         enemy.hp -= finalDamage;
         if (enemy.hp < 0) enemy.hp = 0;
 
-        discardPile.push(...hand);
-        hand = []; 
+        let domCards = document.querySelectorAll('#hand-container .card');
+        domCards.forEach(cardDOM => {
+            cardDOM.classList.add('discarding');
+        });
 
-        updateUI();
+        setTimeout(() => {
+            discardPile.push(...hand);
+            hand = []; 
+            updateUI();
 
-        // ★ 승리 시 지도 화면으로 복귀
-        if (enemy.hp <= 0) {
-            logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!");
-            alert("전투 승리! 다음 구역으로 나아갑니다.");
-            
-            currentFloor++; // 층수 증가
-            
-            const mainContainer = document.getElementById('game-main-container');
-            mainContainer.style.display = 'none';
-            openMap(); // 전투 화면을 숨기고 맵을 연다
-            return;
-        }
+            if (enemy.hp <= 0) {
+                logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!");
+                alert("전투 승리! 다음 구역으로 나아갑니다.");
+                
+                currentFloor++; 
+                const mainContainer = document.getElementById('game-main-container');
+                mainContainer.style.display = 'none';
+                openMap(); 
+                return;
+            }
 
-        logMessage("---- [적의 턴 시작] ----");
-        setTimeout(enemyTurn, 900);
+            logMessage("---- [적의 턴 시작] ----");
+            setTimeout(enemyTurn, 700);
+        }, 400); 
     }
 
     function enemyTurn() {
@@ -496,7 +521,6 @@
         if (player.hp <= 0) {
             logMessage("판돈이 바닥나 심연 속으로 추락했습니다... 파산 (GAME OVER)");
             alert("파산 (게임 오버)!");
-            // 게임 오버 시 로비로 이동
             const mainContainer = document.getElementById('game-main-container');
             mainContainer.style.display = 'none';
             const lobbyScreen = document.getElementById('lobby-screen');
@@ -530,6 +554,12 @@
             let cardDiv = document.createElement('div');
             let isRed = (card.suit === '♥' || card.suit === '◆');
             cardDiv.className = `card ${isRed ? 'red' : 'black'} ${card.selected ? 'selected' : ''}`;
+            
+            // ★ 새로 뽑힌 카드인 경우 drawing 클래스를 붙여 애니메이션 실행
+            if (card.isNew) {
+                cardDiv.classList.add('drawing');
+                card.isNew = false; // 한 번 실행 후 해제하여 다음 클릭 시 재실행 방지
+            }
             
             let blockVal = getCardBlock(card.rank);
             cardDiv.innerHTML = `

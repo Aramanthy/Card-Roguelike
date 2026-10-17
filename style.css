@@ -342,3 +342,39 @@ button:disabled {
     color: #ff6b6b;
     font-weight: bold;
 }
+
+/* --- 카드 묘지행 (Discard) 애니메이션 --- */
+@keyframes moveToGraveyard {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-100px) translateX(80px) scale(0.2) rotate(20deg); opacity: 0; }
+}
+
+.card.discarding {
+    animation: moveToGraveyard 0.4s forwards ease-in;
+    pointer-events: none; /* 애니메이션 도중 클릭 방지 */
+}
+
+/* --- 카드 뽑기 & 버리기 애니메이션 (동선 및 충돌 수정) --- */
+
+/* 1. 드로우: 왼쪽 덱 위치에서 중앙으로 날아옴 */
+@keyframes drawFromDeck {
+    0% { transform: translateX(-250px) translateY(-30px) scale(0.3) rotate(-30deg); opacity: 0; }
+    100% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+.card.drawing {
+    animation: drawFromDeck 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transition: none !important; /* 기존 호버 transition과 애니메이션 충돌 방지 */
+}
+
+/* 2. 버리기: 중앙에서 오른쪽 버린 패 위치로 빨려 들어감 */
+@keyframes moveToGraveyard {
+    0% { transform: translateX(0) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translateX(250px) translateY(30px) scale(0.3) rotate(30deg); opacity: 0; }
+}
+
+.card.discarding {
+    animation: moveToGraveyard 0.4s ease-in forwards;
+    transition: none !important; /* 기존 호버 transition과 애니메이션 충돌 방지 */
+    pointer-events: none;
+}
