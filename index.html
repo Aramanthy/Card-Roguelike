@@ -67,6 +67,36 @@
     </div>
 </div>
 
+<!-- 🗺️ 3.5. 심연의 지도 (Map Screen) -->
+<div id="map-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #140d18 0%, #070509 95%); flex-direction: column; justify-content: center; align-items: center; z-index: 920; transition: opacity 0.5s ease;">
+    <div class="char-selection-container">
+        <div class="lobby-title" style="margin-bottom: 15px;">다 음 구 역 선 택</div>
+        <p style="color: #a89f91; font-size: 13px; margin-bottom: 20px;">어느 핏빛 길을 걸으시겠습니까? (현재 층: <span id="current-floor" style="color:#d4af37; font-weight:bold;">1</span>층)</p>
+        
+        <div class="char-cards-wrapper">
+            <!-- 일반 전투 -->
+            <div class="char-card" onclick="enterBattle('normal')">
+                <div class="char-name">⚔️ 일반 도박판</div>
+                <div class="char-desc">평범한 심연의 딜러가 기다립니다. 적당한 위험과 보상.</div>
+            </div>
+
+            <!-- 엘리트 전투 -->
+            <div class="char-card" onclick="enterBattle('elite')" style="border-color: #8b0000;">
+                <div class="char-name" style="color: #ff6b6b;">💀 정예 딜러</div>
+                <div class="char-desc">매우 위험합니다. 하지만 강력한 전리품을 얻을 수 있습니다.</div>
+            </div>
+
+            <!-- 휴식처 -->
+            <div class="char-card" onclick="enterRestSite()" style="border-color: #2E8B57;">
+                <div class="char-name" style="color: #3CB371;">⛺ 안전 지대</div>
+                <div class="char-desc">판돈(HP)을 소량 회복하거나 숨을 고릅니다.</div>
+            </div>
+        </div>
+        
+        <button class="lobby-btn danger" onclick="returnToLobbyFromMap()" style="margin-top: 10px;">포기하고 로비로</button>
+    </div>
+</div>
+
 <!-- 🎮 4. 메인 게임 화면 -->
 <div class="container" id="game-main-container" style="display: none;">
     <h2>심연의 도박사 : 포커 덱 빌딩 (Ver 0.2)</h2>
@@ -110,17 +140,20 @@
     let player = { name: "타락한 도박사", hp: 100, maxHp: 100, block: 0 };
     let enemy = { hp: 150, maxHp: 150, intentDamage: 18 };
     
+    // ★ 추가: 마스터 덱 (플레이어가 보유한 전체 덱)과 현재 층수
+    let masterDeck = []; 
+    let currentFloor = 1;
+
     let deck = [];
-    let discardPile = []; // ★ 추가: 버린 카드 더미
+    let discardPile = [];
     let hand = [];
 
     const suits = ['♠', '♥', '◆', '♣'];
     const ranks = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
-    // ★ 추가: 카드 뽑기 및 덱 순환을 관리하는 함수
     function drawCard() {
         if (deck.length === 0) {
-            if (discardPile.length === 0) return null; // 뽑을 카드가 아예 없을 경우 방어 코드
+            if (discardPile.length === 0) return null;
             logMessage("덱이 모두 소진되어 버린 카드를 다시 섞습니다.");
             deck = discardPile;
             discardPile = [];
@@ -193,25 +226,15 @@
         }, 500);
     }
 
-    function selectCharacter(type, maxHp) {
-        if (type === 'gambler') player.name = "타락한 도박사";
-        else if (type === 'cheater') player.name = "사기꾼";
-        else if (type === 'broker') player.name = "영혼을 파는 자";
-
-        player.maxHp = maxHp;
-        player.hp = maxHp;
-        document.getElementById('player-class-name').innerText = player.name;
-
-        const charScreen = document.getElementById('character-screen');
-        charScreen.style.opacity = '0';
+    function returnToLobbyFromMap() {
+        const mapScreen = document.getElementById('map-screen');
+        mapScreen.style.opacity = '0';
         setTimeout(() => {
-            charScreen.style.display = 'none';
-            const mainContainer = document.getElementById('game-main-container');
-            mainContainer.style.display = 'block';
-            mainContainer.style.opacity = '1';
+            mapScreen.style.display = 'none';
+            const lobbyScreen = document.getElementById('lobby-screen');
+            lobbyScreen.style.display = 'flex';
+            lobbyScreen.style.opacity = '1';
         }, 500);
-
-        initGame();
     }
 
     function returnToLobby() {
@@ -222,31 +245,86 @@
         setTimeout(() => { lobbyScreen.style.opacity = '1'; }, 10);
     }
 
-    function openCharacterInfo() {
-        alert("[도박사 명단]\n1. 타락한 도박사 (HP 100): 정석적인 밸런스형.\n2. 사기꾼 (HP 75): 고위험 고귀족형.\n3. 영혼을 파는 자 (HP 125): 거대한 생명력형.");
+    // --- 런(Run) 시작 로직 ---
+    function selectCharacter(type, maxHp) {
+        if (type === 'gambler') player.name = "타락한 도박사";
+        else if (type === 'cheater') player.name = "사기꾼";
+        else if (type === 'broker') player.name = "영혼을 파는 자";
+
+        player.maxHp = maxHp;
+        player.hp = maxHp;
+        document.getElementById('player-class-name').innerText = player.name;
+
+        initRun(); // ★ 런 초기화 실행 (마스터 덱 생성 등)
+
+        const charScreen = document.getElementById('character-screen');
+        charScreen.style.opacity = '0';
+        setTimeout(() => {
+            charScreen.style.display = 'none';
+            openMap(); // ★ 전투 대신 지도 화면으로 이동
+        }, 500);
     }
 
-    function openHelpModal() {
-        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block)\n- 높은 숫자 및 족보(J~A, 페어 등): 강력한 공격력\n- 콜/레이즈: HP를 소모하여 카드 교체");
-    }
-
-    // --- 게임 메인 로직 ---
-    function initGame() {
-        player.block = 0;
-        enemy.hp = 150;
-        
-        deck = [];
-        discardPile = []; // ★ 초기화 시 버린 패도 비워줌
+    function initRun() {
+        currentFloor = 1;
+        masterDeck = [];
+        // 기본 52장 트럼프 카드를 마스터 덱에 구성
         suits.forEach(suit => {
             ranks.forEach(rank => {
-                deck.push({ suit: suit, rank: rank, selected: true, uniqueId: Math.random() });
+                masterDeck.push({ suit: suit, rank: rank });
             });
         });
+    }
+
+    // --- 지도 시스템 로직 ---
+    function openMap() {
+        document.getElementById('current-floor').innerText = currentFloor;
+        const mapScreen = document.getElementById('map-screen');
+        mapScreen.style.display = 'flex';
+        setTimeout(() => { mapScreen.style.opacity = '1'; }, 10);
+    }
+
+    function enterRestSite() {
+        let healAmount = 20;
+        player.hp = Math.min(player.maxHp, player.hp + healAmount);
+        alert(`안전 지대에서 휴식을 취했습니다.\n판돈(HP)을 ${healAmount} 회복하여 현재 ${player.hp}가 되었습니다.`);
+        
+        currentFloor++;
+        openMap(); // 휴식 후 다음 층(지도)으로
+    }
+
+    function enterBattle(type) {
+        const mapScreen = document.getElementById('map-screen');
+        mapScreen.style.opacity = '0';
+        setTimeout(() => {
+            mapScreen.style.display = 'none';
+            const mainContainer = document.getElementById('game-main-container');
+            mainContainer.style.display = 'block';
+            mainContainer.style.opacity = '1';
+        }, 500);
+
+        initBattle(type);
+    }
+
+    // --- 배틀 메인 로직 ---
+    function initBattle(type) {
+        player.block = 0;
+        
+        if (type === 'elite') {
+            enemy.hp = 300; enemy.maxHp = 300; enemy.intentDamage = 28;
+            document.getElementById('log').innerHTML = `> [${currentFloor}층] 끔찍한 기운의 정예 딜러가 나타났습니다!<br>`;
+        } else {
+            enemy.hp = 150; enemy.maxHp = 150; enemy.intentDamage = 15;
+            document.getElementById('log').innerHTML = `> [${currentFloor}층] 일반 딜러와의 승부가 시작됩니다.<br>`;
+        }
+
+        // ★ 매 전투 시작 시 마스터 덱을 복사하여 새 전투 덱 구성
+        deck = masterDeck.map(c => ({ suit: c.suit, rank: c.rank, selected: true, uniqueId: Math.random() }));
+        discardPile = [];
+        hand = [];
 
         shuffleDeck();
-        document.getElementById('log').innerHTML = '';
-        logMessage(`[${player.name}]이(가) 심연의 도박판에 발을 들였습니다. 목숨(HP)을 판돈 삼아 겨루세요.`);
-        startPlayerTurn();
+        setTimeout(startPlayerTurn, 500);
     }
 
     function shuffleDeck() {
@@ -259,14 +337,13 @@
     function startPlayerTurn() {
         player.block = 0;
         
-        // ★ 내 턴 시작 전 손에 카드가 남아있다면 버린 패로 모두 보냄
         if (hand.length > 0) {
             discardPile.push(...hand);
             hand = [];
         }
         
         for (let i = 0; i < 5; i++) {
-            let card = drawCard(); // ★ drawCard() 사용
+            let card = drawCard();
             if(card) {
                 card.selected = true;
                 hand.push(card);
@@ -292,19 +369,15 @@
             return;
         }
         player.hp -= 5;
-        
         let indexToReplace = hand.findIndex(c => !c.selected);
         if (indexToReplace === -1) indexToReplace = 0;
         
-        // ★ 교체되는 카드를 버린 카드 더미로 이동
         discardPile.push(hand[indexToReplace]);
-        
         let newCard = drawCard();
         if(newCard) {
             newCard.selected = true;
             hand[indexToReplace] = newCard;
         }
-
         logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 은밀히 교체했습니다 (콜).");
         updateUI();
     }
@@ -320,23 +393,19 @@
             let indexToReplace = hand.findIndex(c => !c.selected);
             if (indexToReplace === -1) indexToReplace = i;
             
-            // ★ 교체되는 카드를 버린 카드 더미로 이동
             discardPile.push(hand[indexToReplace]);
-            
             let newCard = drawCard();
             if(newCard){
                 newCard.selected = true;
                 hand[indexToReplace] = newCard;
             }
         }
-
         logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 뒤바꿨습니다 (레이즈!).");
         updateUI();
     }
 
     function evaluatePokerHand(cards) {
         if (cards.length === 0) return { name: "없음 (공격 안 함)", multiplier: 0, base: 0 };
-
         let sortedRanks = cards.map(c => c.rank).sort((a, b) => a - b);
         let counts = {};
         sortedRanks.forEach(r => counts[r] = (counts[r] || 0) + 1);
@@ -391,15 +460,21 @@
         enemy.hp -= finalDamage;
         if (enemy.hp < 0) enemy.hp = 0;
 
-        // ★ 내 턴 종료: 손에 있던 카드를 모두 버린 카드 더미로 보냄
         discardPile.push(...hand);
         hand = []; 
 
         updateUI();
 
+        // ★ 승리 시 지도 화면으로 복귀
         if (enemy.hp <= 0) {
             logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!");
-            alert("전투 승리!");
+            alert("전투 승리! 다음 구역으로 나아갑니다.");
+            
+            currentFloor++; // 층수 증가
+            
+            const mainContainer = document.getElementById('game-main-container');
+            mainContainer.style.display = 'none';
+            openMap(); // 전투 화면을 숨기고 맵을 연다
             return;
         }
 
@@ -421,6 +496,12 @@
         if (player.hp <= 0) {
             logMessage("판돈이 바닥나 심연 속으로 추락했습니다... 파산 (GAME OVER)");
             alert("파산 (게임 오버)!");
+            // 게임 오버 시 로비로 이동
+            const mainContainer = document.getElementById('game-main-container');
+            mainContainer.style.display = 'none';
+            const lobbyScreen = document.getElementById('lobby-screen');
+            lobbyScreen.style.display = 'flex';
+            setTimeout(() => { lobbyScreen.style.opacity = '1'; }, 10);
             return;
         }
 
@@ -439,7 +520,6 @@
         document.getElementById('player-block').innerText = player.block;
         document.getElementById('enemy-hp').innerText = enemy.hp;
 
-        // ★ 새로 추가된 UI (남은 덱 장수, 버린 패 장수) 업데이트
         document.getElementById('deck-count').innerText = deck.length;
         document.getElementById('discard-count').innerText = discardPile.length;
 
@@ -461,6 +541,14 @@
             cardDiv.onclick = () => toggleCard(card.uniqueId);
             handContainer.appendChild(cardDiv);
         });
+    }
+
+    function openCharacterInfo() {
+        alert("[도박사 명단]\n1. 타락한 도박사 (HP 100): 정석적인 밸런스형.\n2. 사기꾼 (HP 75): 고위험 고수익형.\n3. 영혼을 파는 자 (HP 125): 거대한 생명력형.");
+    }
+
+    function openHelpModal() {
+        alert("[도움말 및 규칙]\n- 낮은 숫자(2~5): 높은 방어력(Block)\n- 높은 숫자 및 족보(J~A, 페어 등): 강력한 공격력\n- 콜/레이즈: HP를 소모하여 카드 교체");
     }
 </script>
 
