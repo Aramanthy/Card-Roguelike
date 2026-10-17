@@ -396,13 +396,32 @@ button:disabled {
     50%, 100% { opacity: 1; }
 }
 
-/* --- 5. 버리기(묘지) 애니메이션 --- */
+/* --- 5. 버리기(묘지) 애니메이션 (빠른 직진성, 투명화 최소화) --- */
 .card.discarding {
-    animation: moveToGraveyard 0.4s ease-in forwards;
+    animation: moveToGraveyard 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
     transition: none !important;
     pointer-events: none;
 }
 @keyframes moveToGraveyard {
     0% { transform: translateX(0) scale(1) rotate(0deg); opacity: 1; }
-    100% { transform: translateX(250px) translateY(30px) scale(0.3) rotate(30deg); opacity: 0; }
+    /* 목적지에 닿을 때까지 투명도 1을 유지하여 덱에 꽂히는 느낌 부여 */
+    80% { transform: translateX(250px) translateY(30px) scale(0.3) rotate(20deg); opacity: 1; }
+    /* 마지막 순간에 크기를 0으로 줄여 완전히 빨려 들어간 것처럼 연출 */
+    100% { transform: translateX(250px) translateY(40px) scale(0); opacity: 0; } 
+}
+
+/* --- 6. 공격(Attacking) 애니메이션 (강력한 타격 후 묘지로 아치형 낙하) --- */
+.card.attacking {
+    animation: attackEnemy 0.5s ease-out forwards;
+    transition: none !important;
+    pointer-events: none;
+    z-index: 10;
+}
+@keyframes attackEnemy {
+    0% { transform: translateY(-35px) translateX(0) scale(1); opacity: 1; }
+    /* 1. 빠르고 강하게 직진(위로) 타격 */
+    25% { transform: translateY(-220px) translateX(0) scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #ff6b6b); }
+    35% { transform: translateY(-220px) translateX(0) scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #ff6b6b); }
+    /* 2. 타격 후 우측 묘지 방향으로 떨어지며 투명화 */
+    100% { transform: translateY(40px) translateX(250px) scale(0.2) rotate(40deg); opacity: 0; filter: none; }
 }

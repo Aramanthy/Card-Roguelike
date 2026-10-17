@@ -130,74 +130,112 @@ function toggleCard(uniqueId) {
     if (card) { card.selected = !card.selected; updateUI(); }
 }
 
+// ★ 콜 로직 복구: 카드 1장 "추가" 드로우
 function dealerCall() {
     if (player.hp <= 5) { logMessage("체력(판돈)이 부족하여 딜러를 매수할 수 없습니다!"); return; }
     player.hp -= 5;
-    let idx = hand.findIndex(c => !c.selected); if (idx === -1) idx = 0;
     
-    discardPile.push(hand[idx]);
     let newCard = drawCard();
-    if(newCard) { newCard.selected = false; newCard.dealState = 'dealing'; newCard.dealDelay = 0; hand[idx] = newCard; }
+    if(newCard) { 
+        newCard.selected = false; 
+        newCard.dealState = 'dealing'; 
+        newCard.dealDelay = 0; 
+        hand.push(newCard); // 교체가 아닌 추가(Push)
+    }
     
     setButtonsEnabled(false); updateUI();
     
     setTimeout(() => {
-        if(hand[idx]) hand[idx].dealState = 'flipping'; updateUI();
+        if(newCard) newCard.dealState = 'flipping'; updateUI();
         setTimeout(() => {
-            if(hand[idx]) hand[idx].dealState = 'revealed';
+            if(newCard) newCard.dealState = 'revealed';
             autoSelectBestHand(); setButtonsEnabled(true); updateUI();
-            logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 은밀히 교체했습니다 (콜).");
+            logMessage("딜러에게 피를 바치고(HP -5) 카드 1장을 추가로 뽑았습니다 (콜).");
         }, 400);
     }, 300);
 }
 
+// ★ 레이즈 로직 복구: 카드 2장 "추가" 드로우
 function dealerRaise() {
     if (player.hp <= 10) { logMessage("체력(판돈)이 부족하여 레이즈를 할 수 없습니다!"); return; }
     player.hp -= 10;
     
-    let replaced = [];
+    let addedCards = [];
     for(let i=0; i<2; i++) {
-        let idx = hand.findIndex((c, currentIdx) => !c.selected && !replaced.includes(currentIdx));
-        if (idx === -1) idx = i;
-        replaced.push(idx); discardPile.push(hand[idx]);
-        
         let newCard = drawCard();
-        if(newCard){ newCard.selected = false; newCard.dealState = 'dealing'; newCard.dealDelay = i * 0.15; hand[idx] = newCard; }
+        if(newCard){ 
+            newCard.selected = false; 
+            newCard.dealState = 'dealing'; 
+            newCard.dealDelay = i * 0.15; 
+            hand.push(newCard); // 교체가 아닌 추가(Push)
+            addedCards.push(newCard);
+        }
     }
     
     setButtonsEnabled(false); updateUI();
     
     setTimeout(() => {
-        replaced.forEach(idx => { if(hand[idx]) hand[idx].dealState = 'flipping'; }); updateUI();
+        addedCards.forEach(c => { c.dealState = 'flipping'; }); updateUI();
         setTimeout(() => {
-            replaced.forEach(idx => { if(hand[idx]) hand[idx].dealState = 'revealed'; });
+            addedCards.forEach(c => { c.dealState = 'revealed'; });
             autoSelectBestHand(); setButtonsEnabled(true); updateUI();
-            logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 뒤바꿨습니다 (레이즈!).");
+            logMessage("딜러에게 거액의 대가(HP -10)를 바치고 카드 2장을 추가로 뽑았습니다 (레이즈!).");
         }, 400);
     }, 450);
 }
 
+// ★ 족보 판정 로직 보강: 방어를 위해 6장 이상을 동시 선택해도 플러시/스트레이트가 정상 인식되도록 수정
 function evaluatePokerHand(cards) {
     if (cards.length === 0) return { name: "없음 (공격 안 함)", multiplier: 0, base: 0 };
-    let sortedRanks = cards.map(c => c.rank).sort((a, b) => a - b); let counts = {}; sortedRanks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+    
+    let sortedRanks = cards.map(c => c.rank).sort((a, b) => a - b); 
+    let counts = {}; sortedRanks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+    
     let countGroups = {4:[], 3:[], 2:[], 1:[]};
     for (let r in counts) countGroups[counts[r]].push(Number(r));
     for (let c in countGroups) countGroups[c].sort((a,b) => b - a);
-    let firstSuit = cards[0].suit; let isFlush = cards.length >= 5 && cards.every(c => c.suit === firstSuit);
+    
+    // 플러시 판정 보강 (5장 이상이 같은 무늬인지 카운트)
+    let suitCounts = { '♠':0, '♥':0, '◆':0, '♣':0 };
+    cards.forEach(c => suitCounts[c.suit]++);
+    let flushSuit = Object.keys(suitCounts).find(s => suitCounts[s] >= 5);
+    let isFlush = !!flushSuit;
+    let flushBase = isFlush ? cards.filter(c => c.suit === flushSuit).map(c => c.rank).sort((a,b)=>b-a).slice(0,5).reduce((a,b)=>a+b,0) : 0;
+
+    // 스트레이트 판정 보강
     let isStraight = false; let straightSum = 0; let uniqueRanks = [...new Set(sortedRanks)];
     if (uniqueRanks.length >= 5) {
         for (let i = 0; i <= uniqueRanks.length - 5; i++) {
-            if (uniqueRanks[i+4] - uniqueRanks[i] === 4) { isStraight = true; straightSum = uniqueRanks.slice(i, i+5).reduce((a,b)=>a+b,0); }
+            if (uniqueRanks[i+4] - uniqueRanks[i] === 4) { 
+                isStraight = true; 
+                straightSum = uniqueRanks.slice(i, i+5).reduce((a,b)=>a+b,0); 
+            }
         }
     }
-    if (isStraight && isFlush) return { name: "스트레이트 플러시", multiplier: 10, base: straightSum };
+
+    // 스트레이트 플러시 판정 보강
+    let isStraightFlush = false; let stFlushSum = 0;
+    if (isFlush) {
+        let flushRanks = [...new Set(cards.filter(c => c.suit === flushSuit).map(c=>c.rank).sort((a,b)=>a-b))];
+        if (flushRanks.length >= 5) {
+            for (let i = 0; i <= flushRanks.length - 5; i++) {
+                if (flushRanks[i+4] - flushRanks[i] === 4) {
+                    isStraightFlush = true;
+                    stFlushSum = flushRanks.slice(i, i+5).reduce((a,b)=>a+b,0);
+                }
+            }
+        }
+    }
+
+    if (isStraightFlush) return { name: "스트레이트 플러시", multiplier: 10, base: stFlushSum };
     if (countGroups[4].length > 0) return { name: "포카드", multiplier: 8, base: countGroups[4][0] * 4 };
     if (countGroups[3].length > 0 && countGroups[2].length > 0) return { name: "풀하우스", multiplier: 6, base: (countGroups[3][0] * 3) + (countGroups[2][0] * 2) };
-    if (isFlush) return { name: "플러시", multiplier: 5, base: sortedRanks.slice(-5).reduce((a,b)=>a+b,0) };
+    if (isFlush) return { name: "플러시", multiplier: 5, base: flushBase };
     if (isStraight) return { name: "스트레이트", multiplier: 4, base: straightSum };
     if (countGroups[3].length > 0) return { name: "트리플", multiplier: 3, base: countGroups[3][0] * 3 };
     if (countGroups[2].length > 1) return { name: "투페어", multiplier: 2, base: (countGroups[2][0] * 2) + (countGroups[2][1] * 2) };
     if (countGroups[2].length === 1) return { name: "원페어", multiplier: 1.5, base: countGroups[2][0] * 2 };
+    
     return { name: "하이 카드", multiplier: 1, base: Math.max(...sortedRanks) };
 }
 
@@ -225,16 +263,43 @@ function playTurnAction() {
     let totalBlock = 0; selectedCards.forEach(c => { totalBlock += getCardBlock(c.rank); }); player.block += totalBlock;
     logMessage(`어둠 속에서 ${totalBlock}의 방어막을 전개했습니다.`);
     let result = evaluatePokerHand(selectedCards); let finalDamage = Math.floor(result.base * result.multiplier);
-    logMessage(`[운명의 판정] ${result.name}! (합: ${result.base} × 배율: ${result.multiplier})`); logMessage(`딜러의 심장을 겨냥해 ${finalDamage}의 피해를 입혔습니다!`);
-    enemy.hp -= finalDamage; if (enemy.hp < 0) enemy.hp = 0;
+    logMessage(`[운명의 판정] ${result.name}! (합: ${result.base} × 배율: ${result.multiplier})`); 
 
-    let domCards = document.querySelectorAll('#hand-container .card'); domCards.forEach(cardDOM => { cardDOM.classList.add('discarding'); });
+    let domCards = document.querySelectorAll('#hand-container .card'); 
+    
+    // 1단계: 미선택 카드(족보 미포함) 먼저 묘지로 빠르게 꽂힘!
+    domCards.forEach((cardDOM, index) => { 
+        if (!hand[index].selected) cardDOM.classList.add('discarding'); 
+    });
 
+    // 2단계: 약간의 딜레이(0.15초) 후, 족보 카드들이 적을 향해 강력하게 솟구침
     setTimeout(() => {
-        discardPile.push(...hand); hand = []; updateUI();
-        if (enemy.hp <= 0) { logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!"); alert("전투 승리! 다음 구역으로 나아갑니다."); currentFloor++; openMap(); return; }
-        logMessage("---- [적의 턴 시작] ----"); setTimeout(enemyTurn, 700);
-    }, 400); 
+        domCards.forEach((cardDOM, index) => { 
+            if (hand[index].selected) cardDOM.classList.add('attacking'); 
+        });
+
+        // 3단계: 카드가 적에게 닿아 때리는 정확한 타이밍(약 0.12초 후)에 데미지 수치 깎임
+        setTimeout(() => {
+            logMessage(`딜러의 심장을 겨냥해 ${finalDamage}의 피해를 입혔습니다!`);
+            enemy.hp -= finalDamage; if (enemy.hp < 0) enemy.hp = 0;
+            
+            // 화면의 적 체력을 즉시 깎아 확실한 타격감 부여
+            document.getElementById('enemy-hp').innerText = enemy.hp; 
+
+            // 4단계: 타격 후 카드가 묘지로 완전히 떨어지기를 기다린 뒤 턴 종료 처리
+            setTimeout(() => {
+                discardPile.push(...hand); hand = []; updateUI();
+                if (enemy.hp <= 0) { 
+                    logMessage("심연의 딜러를 무릎 꿇리고 판을 지배했습니다! 승리!"); 
+                    alert("전투 승리! 다음 구역으로 나아갑니다."); 
+                    currentFloor++; openMap(); return; 
+                }
+                logMessage("---- [적의 턴 시작] ----"); setTimeout(enemyTurn, 600);
+            }, 380); // 남은 낙하 애니메이션 대기
+
+        }, 120); // 타격 타이밍
+
+    }, 150); // 발사 딜레이
 }
 
 function enemyTurn() {
